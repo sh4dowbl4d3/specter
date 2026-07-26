@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>devastator — hash & cipher toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300..700;1,300..700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0b;
+  --surface: #121213;
+  --surface-2: #1a1a1c;
+  --border: #27272a;
+  --text: #e4e4e7;
+  --text-dim: #71717a;
+  --accent: #22c55e;
+  --accent-dim: #166534;
+  --error: #ef4444;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { font-size: 15px; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+header h1 {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+header span.sub {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+nav button {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.6rem 1.25rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+nav button:hover { color: var(--text); }
+nav button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+textarea, input, select {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+textarea:focus, input:focus, select:focus {
+  border-color: var(--accent);
+}
+
+textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.input-group label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.row > * { flex: 1; }
+
+.btn {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #052e16;
+}
+
+.btn-primary:hover { background: #16a34a; }
+
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover { border-color: var(--text-dim); }
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.output {
+  margin-top: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.output-body {
+  padding: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.output-body .empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.output-body .error {
+  color: var(--error);
+}
+
+.output-body .key {
+  color: var(--accent);
+}
+
+.output-body .value {
+  color: var(--text);
+}
+
+.output-body .dim {
+  color: var(--text-dim);
+}
+
+table.results {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+table.results th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-dim);
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+table.results td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+table.results tr:last-child td { border-bottom: none; }
+
+.copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.65rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: all 0.15s;
+}
+
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.about-text {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+
+.about-text strong { color: var(--text); }
+
+.about-text code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--surface-2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+.support-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.support-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.support-card h3 {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.support-card ul {
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.support-card ul li::before { content: '› '; color: var(--accent); }
+
+@media (max-width: 640px) {
+  .row { flex-direction: column; }
+  .support-grid { grid-template-columns: 1fr; }
+  header { padding: 0.75rem 1rem; }
+  main { padding: 1rem; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>devastator</h1>
+  <span class="sub">hash &amp; cipher toolkit</span>
+</header>
+
+<nav>
+  <button class="active" data-tab="hash">Hash</button>
+  <button data-tab="cipher">Cipher</button>
+  <button data-tab="about">About</button>
+</nav>
+
+<main>
+  <div id="tab-hash" class="tab-content active">
+    <div class="section-title">Hash Tools</div>
+
+    <div class="input-group">
+      <label for="hash-input">Hash string</label>
+      <textarea id="hash-input" placeholder="Paste a hash (MD5, SHA-1, SHA-256, bcrypt, NTLM, ...)"></textarea>
+    </div>
+
+    <div class="row">
+      <div class="input-group">
+        <label for="wordlist-path">Wordlist path (optional)</label>
+        <input id="wordlist-path" type="text" placeholder="wordlists/rockyou.txt">
+      </div>
+      <div class="input-group">
+        <label for="bf-maxlen">Brute max length</label>
+        <select id="bf-maxlen">
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="bf-charset">Brute charset</label>
+        <select id="bf-charset">
+          <option value="lowerdigit">lower+digit</option>
+          <option value="lower">lower</option>
+          <option value="alnum">alphanumeric</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="identifyHash()">Identify</button>
+      <button class="btn btn-secondary" onclick="crackHash()">Crack</button>
+      <button class="btn btn-secondary" onclick="bruteForce()">Brute-Force</button>
+    </div>
+
+    <div id="hash-output" class="output">
+      <div class="output-header">
+        <span>Result</span>
+        <button class="copy-btn" onclick="copyOutput('hash-output-body')">Copy</button>
+      </div>
+      <div id="hash-output-body" class="output-body">
+        <span class="empty">Enter a hash and click Identify, Crack, or Brute-Force</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-cipher" class="tab-content">
+    <div class="section-title">Cipher Tools</div>
+
+    <div class="input-group">
+      <label for="cipher-input">Text</label>
+      <textarea id="cipher-input" placeholder="Paste ciphertext or plaintext"></textarea>
+    </div>
+
+    <div class="row">
+      <div class="input-group">
+        <label for="cipher-type">Cipher type</label>
+        <select id="cipher-type">
+          <option value="auto">Auto-detect</option>
+          <option value="base64">Base64</option>
+          <option value="hex">Hex</option>
+          <option value="binary">Binary</option>
+          <option value="rot13">ROT13</option>
+          <option value="atbash">Atbash</option>
+          <option value="caesar">Caesar</option>
+          <option value="vigenere">Vigenère</option>
+        </select>
+      </div>
+      <div class="input-group" id="cipher-param-group" style="display:none">
+        <label for="cipher-param">Key / Shift</label>
+        <input id="cipher-param" type="text" placeholder="e.g. 13 or keyphrase">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="cipherDecode()">Decode</button>
+      <button class="btn btn-secondary" onclick="cipherEncode()">Encode</button>
+      <button class="btn btn-secondary" onclick="cipherDetect()">Detect</button>
+    </div>
+
+    <div id="cipher-output" class="output">
+      <div class="output-header">
+        <span>Result</span>
+        <button class="copy-btn" onclick="copyOutput('cipher-output-body')">Copy</button>
+      </div>
+      <div id="cipher-output-body" class="output-body">
+        <span class="empty">Enter text and click Decode, Encode, or Detect</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-about" class="tab-content">
+    <div class="section-title">About</div>
+    <div class="about-text">
+      <p><strong>devastator</strong> is a hash identification and cracking toolkit with classical cipher support, built for CTF and educational use.</p>
+      <br>
+      <p><strong>API endpoints</strong> (also available via HTTP):</p>
+      <br>
+      <p><code>POST /api/hash/identify</code> — Detect hash type</p>
+      <p><code>POST /api/hash/crack</code> — Dictionary crack</p>
+      <p><code>POST /api/hash/bruteforce</code> — Brute-force attack</p>
+      <p><code>POST /api/cipher/detect</code> — Auto-detect cipher</p>
+      <p><code>POST /api/cipher/decode</code> — Decode ciphertext</p>
+      <p><code>POST /api/cipher/encode</code> — Encode plaintext</p>
+      <br>
+      <p>Example: <code>curl -X POST http://localhost:8080/api/hash/identify -H 'Content-Type: application/json' -d '{"hash":"5f4dcc3b5aa765d61d8327deb882cf99"}'</code></p>
+    </div>
+
+    <div class="support-grid">
+      <div class="support-card">
+        <h3>Hash Types</h3>
+        <ul>
+          <li>MD5, SHA-1, SHA-224/256/384/512</li>
+          <li>SHA3-224/256/384/512</li>
+          <li>bcrypt, NTLM, MySQL3/4.1</li>
+          <li>RIPEMD-160, GOST, Whirlpool</li>
+          <li>CRC32/64, Adler32, BLAKE2</li>
+        </ul>
+      </div>
+      <div class="support-card">
+        <h3>Ciphers</h3>
+        <ul>
+          <li>Caesar (brute-force all shifts)</li>
+          <li>ROT13, Atbash</li>
+          <li>Base64, Hex, Binary</li>
+          <li>Vigenère (key-based)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API_BASE = '';
+
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('cipher-type').addEventListener('change', function() {
+  const paramGroup = document.getElementById('cipher-param-group');
+  const needsParam = this.value === 'caesar' || this.value === 'vigenere';
+  paramGroup.style.display = needsParam ? 'flex' : 'none';
+  paramGroup.style.flexDirection = 'column';
+  document.getElementById('cipher-param').placeholder =
+    this.value === 'caesar' ? 'Shift (0-25)' : 'Key phrase';
+});
+
+function api(endpoint, data) {
+  return fetch(API_BASE + endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json());
+}
+
+function renderJSON(container, data) {
+  container.innerHTML = '';
+  const text = JSON.stringify(data, null, 2);
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  container.innerHTML = escaped;
+}
+
+function copyOutput(id) {
+  const el = document.getElementById(id);
+  const text = el.textContent;
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+async function identifyHash() {
+  const hash = document.getElementById('hash-input').value.trim();
+  if (!hash) return;
+  const out = document.getElementById('hash-output-body');
+  out.innerHTML = '<span class="dim">Identifying...</span>';
+  try {
+    const data = await api('/api/hash/identify', { hash });
+    if (data.length === 0) {
+      out.innerHTML = '<span class="empty">No identification results</span>';
+      return;
+    }
+    let html = '<table class="results"><thead><tr><th>Type</th><th>Confidence</th><th>Length</th><th>Charset</th></tr></thead><tbody>';
+    for (const r of data) {
+      html += `<tr><td class="key">${r.hash_type || 'Unknown'}</td><td>${(r.confidence * 100).toFixed(0)}%</td><td>${r.length}</td><td class="dim">${r.charset}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    out.innerHTML = html;
+  } catch(e) {
+    out.innerHTML = `<span class="error">Request failed: ${e.message}</span>`;
+  }
+}
+
+async function crackHash() {
+  const hash = document.getElementById('hash-input').value.trim();
+  if (!hash) return;
+  const wordlist = document.getElementById('wordlist-path').value.trim() || null;
+  const out = document.getElementById('hash-output-body');
+  out.innerHTML = '<span class="dim">Cracking...</span>';
+  try {
+    const data = await api('/api/hash/crack', { hash, wordlist_path: wordlist });
+    renderJSON(out, data);
+  } catch(e) {
+    out.innerHTML = `<span class="error">Request failed: ${e.message}</span>`;
+  }
+}
+
+async function bruteForce() {
+  const hash = document.getElementById('hash-input').value.trim();
+  if (!hash) return;
+  const max_length = parseInt(document.getElementById('bf-maxlen').value);
+  const charset = document.getElementById('bf-charset').value;
+  const out = document.getElementById('hash-output-body');
+  out.innerHTML = '<span class="dim">Brute-forcing...</span>';
+  try {
+    const data = await api('/api/hash/bruteforce', { hash, max_length, charset });
+    renderJSON(out, data);
+  } catch(e) {
+    out.innerHTML = `<span class="error">Request failed: ${e.message}</span>`;
+  }
+}
+
+async function cipherDecode() {
+  const text = document.getElementById('cipher-input').value.trim();
+  if (!text) return;
+  const cipher = document.getElementById('cipher-type').value;
+  const param = document.getElementById('cipher-param').value.trim();
+  const out = document.getElementById('cipher-output-body');
+  out.innerHTML = '<span class="dim">Decoding...</span>';
+  try {
+    const body = { text, cipher: cipher === 'auto' ? undefined : cipher };
+    if (cipher === 'caesar') body.shift = parseInt(param) || 0;
+    if (cipher === 'vigenere') body.key = param;
+    const data = await api('/api/cipher/decode', body);
+    renderJSON(out, data);
+  } catch(e) {
+    out.innerHTML = `<span class="error">Request failed: ${e.message}</span>`;
+  }
+}
+
+async function cipherEncode() {
+  const text = document.getElementById('cipher-input').value.trim();
+  if (!text) return;
+  const cipher = document.getElementById('cipher-type').value;
+  if (cipher === 'auto') {
+    document.getElementById('cipher-output-body').innerHTML = '<span class="error">Select a specific cipher type for encoding</span>';
+    return;
+  }
+  const param = document.getElementById('cipher-param').value.trim();
+  const out = document.getElementById('cipher-output-body');
+  out.innerHTML = '<span class="dim">Encoding...</span>';
+  try {
+    const body = { text, cipher };
+    if (cipher === 'caesar') body.shift = parseInt(param) || 0;
+    if (cipher === 'vigenere') body.key = param;
+    const data = await api('/api/cipher/encode', body);
+    renderJSON(out, data);
+  } catch(e) {
+    out.innerHTML = `<span class="error">Request failed: ${e.message}</span>`;
+  }
+}
+
+async function cipherDetect() {
+  const text = document.getElementById('cipher-input').value.trim();
+  if (!text) return;
+  const out = document.getElementById('cipher-output-body');
+  out.innerHTML = '<span class="dim">Detecting...</span>';
+  try {
+    const data = await api('/api/cipher/detect', { text });
+    if (data.length === 0) {
+      out.innerHTML = '<span class="empty">No cipher detection results</span>';
+      return;
+    }
+    let html = '<table class="results"><thead><tr><th>Cipher</th><th>Confidence</th><th>Decoded</th></tr></thead><tbody>';
+    for (const r of data) {
+      html += `<tr><td class="key">${r.cipher_type || 'Unknown'}</td><td>${(r.confidence * 100).toFixed(0)}%</td><td class="dim">${r.decoded ? r.decoded.substring(0, 120) + (r.decoded.length > 120 ? '...' : '') : '-'}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    out.innerHTML = html;
+  } catch(e) {
+    out.innerHTML = `<span class="error">Request failed: ${e.message}</span>`;
+  }
+}
+
+document.getElementById('hash-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.ctrlKey) identifyHash();
+});
+
+document.getElementById('cipher-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.ctrlKey) cipherDecode();
+});
+</script>
+</body>
+</html>
