@@ -17,41 +17,43 @@ pub fn crack_from_path(hash: &str, wordlist_path: &Path) -> Result<Option<CrackR
 pub fn crack_from_list(hash: &str, wordlist: &str) -> Option<CrackResult> {
     let trimmed_hash = hash.trim().to_lowercase();
     let ident = identify(hash);
-    let ht = ident
-        .first()
-        .map(|i| i.hash_type.clone())
-        .unwrap_or(HashType::Unknown);
 
-    let hasher = get_hasher(&ht);
-    let hasher = match hasher {
-        Some(h) => h,
-        None => {
-            return Some(CrackResult {
-                hash: hash.to_string(),
-                plaintext: None,
-                method: format!("dictionary (unsupported: {})", ht.name()),
-            });
-        }
+    let hash_types: Vec<HashType> = if ident.is_empty() {
+        vec![HashType::Unknown]
+    } else {
+        ident.iter().map(|i| i.hash_type.clone()).collect()
     };
 
-    for line in wordlist.lines() {
-        let word = line.trim();
-        if word.is_empty() {
-            continue;
-        }
-        if hasher(word).eq_ignore_ascii_case(&trimmed_hash) {
-            return Some(CrackResult {
-                hash: hash.to_string(),
-                plaintext: Some(word.to_string()),
-                method: format!("dictionary ({})", ht.name()),
-            });
+    for ht in &hash_types {
+        let hasher = match get_hasher(ht) {
+            Some(h) => h,
+            None => continue,
+        };
+
+        for line in wordlist.lines() {
+            let word = line.trim();
+            if word.is_empty() {
+                continue;
+            }
+            if hasher(word).eq_ignore_ascii_case(&trimmed_hash) {
+                return Some(CrackResult {
+                    hash: hash.to_string(),
+                    plaintext: Some(word.to_string()),
+                    method: format!("dictionary ({})", ht.name()),
+                });
+            }
         }
     }
+
+    let method = ident
+        .first()
+        .map(|i| format!("dictionary ({})", i.hash_type.name()))
+        .unwrap_or_else(|| "dictionary (unknown)".to_string());
 
     Some(CrackResult {
         hash: hash.to_string(),
         plaintext: None,
-        method: format!("dictionary ({})", ht.name()),
+        method,
     })
 }
 
@@ -129,4 +131,54 @@ pub fn hash_mysql41(s: &str) -> String {
     let stage1_hex = format!("{:x}", stage1).to_uppercase();
     let stage2 = sha1::Sha1::digest(stage1_hex.as_bytes());
     format!("*{:x}", stage2).to_uppercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ntlm_hash() {
+        assert_eq!(hash_ntlm("admin"), "209C6174DA490CAEB422F3FA5A7AE634");
+    }
+
+    #[test]
+    fn test_md5_hash() {
+        assert_eq!(hash_md5("password"), "5f4dcc3b5aa765d61d8327deb882cf99");
+    }
+
+    #[test]
+    fn test_sha256_hash() {
+        assert_eq!(
+            hash_sha256("admin"),
+            "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+        );
+    }
+
+    #[test]
+    fn test_crack_md5() {
+        let wordlist = "password\nadmin\ntest\n";
+        let result = crack_from_list("5f4dcc3b5aa765d61d8327deb882cf99", wordlist);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().plaintext.unwrap(), "password");
+    }
+
+    #[test]
+    fn test_crack_ntlm() {
+        let wordlist = "password\nadmin\ntest\n";
+        let result = crack_from_list("209C6174DA490CAEB422F3FA5A7AE634", wordlist);
+        assert!(result.is_some());
+        assert_eq!(result.as_ref().unwrap().plaintext.as_deref(), Some("admin"));
+    }
+
+    #[test]
+    fn test_crack_sha256() {
+        let wordlist = "password\nadmin\ntest\n";
+        let result = crack_from_list(
+            "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+            wordlist,
+        );
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().plaintext.unwrap(), "admin");
+    }
 }

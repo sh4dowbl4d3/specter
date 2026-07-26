@@ -2,8 +2,8 @@
 target/
 Cargo.lock
 
-# Wordlists (large files)
-wordlists/*.txt
+# Wordlists (large files - untrack these)
+wordlists/rockyou*
 wordlists/*.gz
 
 # IDE
