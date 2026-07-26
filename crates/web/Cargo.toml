@@ -13,3 +13,4 @@ hash_id = { path = "../hash_id" }
 cracker = { path = "../cracker" }
 cipher_tools = { path = "../cipher_tools" }
 tokio = { version = "1", features = ["full"] }
+env_logger = "0.11"
