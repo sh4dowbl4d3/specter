@@ -14,7 +14,11 @@ async fn main() -> std::io::Result<()> {
     println!("  ╚══════════════════════════════════╝");
     println!("  Listening on http://127.0.0.1:8080");
 
-    HttpServer::new(|| {
+    let frontend_path = std::env::current_dir()
+        .map(|p| p.join("frontend"))
+        .unwrap_or_else(|_| std::path::PathBuf::from("frontend"));
+
+    HttpServer::new(move || {
         let cors = Cors::permissive();
 
         App::new()
@@ -30,6 +34,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/cipher/encode", web::post().to(routes::cipher_encode)),
             )
             .route("/health", web::get().to(routes::health))
+            .service(actix_files::Files::new("/", frontend_path.clone()).index_file("index.html"))
     })
     .bind("127.0.0.1:8080")?
     .run()

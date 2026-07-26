@@ -5,372 +5,365 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>devastator — hash & cipher identification toolkit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html{font-size:16px;scroll-behavior:smooth}
-body{font-family:'Outfit','Inter',system-ui,sans-serif;background:#060608;color:#e4e4e7;overflow-x:hidden;width:100%;max-width:100%}
-::selection{background:rgba(34,197,94,0.3);color:#e4e4e7}
+html{font-size:16px;scroll-behavior:smooth;cursor:default}
+body{font-family:'Geist','Inter',system-ui,sans-serif;background:#faf9f6;color:#1a1a18;overflow-x:hidden;width:100%;max-width:100%}
+::selection{background:rgba(5,150,105,0.18);color:#1a1a18}
 
 :root{
-  --accent:#22c55e;
-  --accent-glow:rgba(34,197,94,0.15);
-  --surface:#0c0c10;
-  --surface-2:#121216;
-  --border:rgba(255,255,255,0.06);
-  --text-dim:#71717a;
-  --text-dimmer:#52525b;
+  --accent:#059669;
+  --accent-soft:rgba(5,150,105,0.08);
+  --accent-border:rgba(5,150,105,0.18);
+  --accent-glow:rgba(5,150,105,0.12);
+  --surface:#f5f4f0;
+  --surface-2:#efeee9;
+  --surface-3:#e8e7e1;
+  --border:rgba(0,0,0,0.06);
+  --border-light:rgba(0,0,0,0.12);
+  --text:#1a1a18;
+  --text-dim:#787774;
+  --text-dimmer:#a8a7a2;
   --font-mono:'JetBrains Mono','Fira Code',monospace;
-  --font-display:'Outfit','Inter',system-ui,sans-serif;
+  --font-display:'Geist','Inter',system-ui,sans-serif;
+  --cursor-ring:24px;
 }
 
-/* ─── glass nav ─── */
+/* custom cursor ring */
+.cursor-ring{position:fixed;width:var(--cursor-ring);height:var(--cursor-ring);border:1.5px solid var(--accent);border-radius:50%;pointer-events:none;z-index:9999;mix-blend-mode:difference;transition:width 0.25s,height 0.25s,background 0.25s,border-color 0.25s;will-change:transform;transform:translate(-50%,-50%)}
+.cursor-ring.active{width:calc(var(--cursor-ring) + 16px);height:calc(var(--cursor-ring) + 16px);background:rgba(5,150,105,0.06);border-color:var(--accent)}
+@media(hover:none){.cursor-ring{display:none}}
+
+/* click ripple */
+.ripple{position:absolute;border-radius:50%;background:rgba(5,150,105,0.2);pointer-events:none;animation:ripple-out 0.6s ease-out forwards;z-index:1}
+@keyframes ripple-out{0%{width:0;height:0;opacity:1}100%{width:200px;height:200px;opacity:0;transform:translate(-100px,-100px)}}
+
+/* glass nav - light */
 .nav-wrap{position:fixed;top:1.25rem;left:50%;transform:translateX(-50%);z-index:100;width:92%;max-width:720px}
-nav.glass{display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1.25rem 0.7rem 1.5rem;background:rgba(12,12,16,0.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:60px}
-nav .logo{font-family:var(--font-mono);font-size:0.9rem;font-weight:600;color:#e4e4e7;letter-spacing:-0.02em}
+nav.glass{display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1.15rem 0.65rem 1.4rem;background:rgba(250,249,246,0.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:60px;box-shadow:0 1px 3px rgba(0,0,0,0.02),0 4px 12px rgba(0,0,0,0.03)}
+nav .logo{font-family:var(--font-mono);font-size:0.9rem;font-weight:600;color:var(--text);letter-spacing:-0.02em}
 nav .logo span{color:var(--accent)}
 nav .nav-links{display:flex;gap:0.25rem}
-nav .nav-links a{font-family:var(--font-mono);font-size:0.7rem;font-weight:500;color:var(--text-dim);text-decoration:none;padding:0.35rem 0.75rem;border-radius:40px;transition:all 0.2s;letter-spacing:0.02em}
-nav .nav-links a:hover{color:#e4e4e7;background:rgba(255,255,255,0.04)}
+nav .nav-links a{font-family:var(--font-mono);font-size:0.7rem;font-weight:500;color:var(--text-dim);text-decoration:none;padding:0.35rem 0.75rem;border-radius:40px;transition:all 0.25s;letter-spacing:0.02em;position:relative;overflow:hidden}
+nav .nav-links a:hover{color:var(--text);background:var(--accent-soft)}
 
-/* ─── hero ─── */
-.hero{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;padding:6rem 1.5rem 4rem}
-.hero-bg{position:absolute;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(34,197,94,0.06) 0%,transparent 70%),radial-gradient(ellipse 50% 50% at 80% 20%,rgba(34,197,94,0.03) 0%,transparent 60%),radial-gradient(ellipse 50% 50% at 20% 80%,rgba(34,197,94,0.02) 0%,transparent 60%),radial-gradient(ellipse 70% 50% at 50% 100%,rgba(12,12,16,1) 0%,transparent 100%)}
-.hero-grid{position:absolute;inset:0;z-index:0;opacity:0.06;background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse 60% 50% at 50% 50%,black 30%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse 60% 50% at 50% 50%,black 30%,transparent 70%)}
-.hero-content{position:relative;z-index:1;max-width:100%;width:100%;display:flex;flex-direction:column;align-items:center}
-.hero-badge{display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 1rem 0.3rem 0.8rem;border:1px solid rgba(34,197,94,0.2);border-radius:40px;font-family:var(--font-mono);font-size:0.65rem;font-weight:500;color:var(--accent);background:rgba(34,197,94,0.06);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:1.75rem;opacity:0;transform:translateY(12px)}
-.hero-badge .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block;animation:pulse-dot 2s ease-in-out infinite}
-@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.3}}
-.hero h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2.8rem,7vw,5.5rem);line-height:1.05;letter-spacing:-0.035em;color:#e4e4e7;max-width:960px;width:100%;margin:0 auto;opacity:0;transform:translateY(24px)}
-.hero h1 .accent-word{color:var(--accent);position:relative;display:inline-block}
-.hero h1 .accent-word::after{content:'';position:absolute;bottom:0.08em;left:0;width:100%;height:0.08em;background:var(--accent);opacity:0.3;border-radius:2px}
-.hero p{font-size:clamp(0.9rem,1.3vw,1.1rem);font-weight:400;color:var(--text-dim);max-width:560px;margin:1.25rem auto 0;line-height:1.6;opacity:0;transform:translateY(16px)}
-.hero-actions{display:flex;gap:0.65rem;margin-top:2rem;opacity:0;transform:translateY(16px)}
-.hero-actions .btn{font-family:var(--font-mono);font-size:0.78rem;font-weight:500;padding:0.7rem 1.6rem;border-radius:40px;border:none;cursor:pointer;text-decoration:none;transition:all 0.2s;white-space:nowrap}
-.hero-actions .btn:active{transform:scale(0.97)}
-.btn-primary{background:var(--accent);color:#052e16}
-.btn-primary:hover{box-shadow:0 0 24px var(--accent-glow);transform:translateY(-1px)}
-.btn-ghost{background:rgba(255,255,255,0.04);color:#e4e4e7;border:1px solid rgba(255,255,255,0.08)!important}
-.btn-ghost:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15)!important}
+/* editorial split hero */
+.hero{position:relative;min-height:100dvh;display:flex;align-items:center;overflow:hidden;padding:6rem 1.5rem 4rem}
+.hero-bg{position:absolute;inset:0;z-index:0}
+.hero-bg .grad-1{position:absolute;top:-30%;right:-20%;width:70%;height:120%;background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(5,150,105,0.05) 0%,transparent 70%)}
+.hero-bg .grad-2{position:absolute;bottom:-20%;left:-10%;width:50%;height:80%;background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(5,150,105,0.03) 0%,transparent 70%)}
+.hero-grid{position:absolute;inset:0;z-index:0;opacity:0.04;background-image:linear-gradient(rgba(0,0,0,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.04) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse 60% 50% at 50% 50%,black 30%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse 60% 50% at 50% 50%,black 30%,transparent 70%)}
+.hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:3rem;max-width:1200px;width:100%;margin:0 auto;align-items:center}
+.hero-left{opacity:0;transform:translateX(-30px)}
+.hero-left .tag{font-family:var(--font-mono);font-size:0.65rem;font-weight:500;color:var(--accent);text-transform:uppercase;letter-spacing:0.16em;margin-bottom:1.25rem;display:flex;align-items:center;gap:0.5rem}
+.hero-left .tag .dash{width:20px;height:1px;background:var(--accent)}
+.hero-left h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2.2rem,4.5vw,4rem);line-height:1.08;letter-spacing:-0.035em;color:var(--text);max-width:640px;width:100%}
+.hero-left h1 .inline-pill{display:inline-block;width:56px;height:28px;border-radius:40px;vertical-align:middle;margin:0 0.2em;background-size:cover;background-position:center;border:1px solid var(--accent-border);transform:translateY(-2px);box-shadow:0 1px 4px rgba(5,150,105,0.08)}
+.hero-left h1 .inline-pill.p1{background-image:url(https://picsum.photos/seed/hash-id/56/28);filter:grayscale(0.3) contrast(1.1)}
+.hero-left h1 .inline-pill.p2{background-image:url(https://picsum.photos/seed/cipher/56/28);filter:grayscale(0.3) contrast(1.1)}
+.hero-left .sub{font-size:clamp(0.85rem,1.1vw,1rem);font-weight:400;color:var(--text-dim);max-width:460px;margin-top:1.15rem;line-height:1.65}
+.hero-actions{display:flex;gap:0.65rem;margin-top:1.75rem}
+.hero-actions .btn{font-family:var(--font-mono);font-size:0.78rem;font-weight:500;padding:0.7rem 1.5rem;border-radius:40px;border:none;cursor:pointer;text-decoration:none;transition:all 0.2s;white-space:nowrap;position:relative;overflow:hidden}
+.btn-primary{background:var(--accent);color:#f0fdf4}
+.btn-primary:hover{box-shadow:0 0 28px var(--accent-glow);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border-light)!important}
+.btn-ghost:hover{background:var(--accent-soft);border-color:var(--accent-border)!important}
 
-/* ─── main content area ─── */
-.content-wrap{max-width:1200px;width:100%;margin:0 auto;padding:0 1.5rem 6rem;position:relative;z-index:1}
+/* hero right - abstract terminal visual */
+.hero-right{opacity:0;transform:translateX(30px);display:flex;align-items:center;justify-content:center}
+.hero-visual{width:100%;max-width:440px;aspect-ratio:4/3;border-radius:16px;background:linear-gradient(145deg,var(--surface),var(--surface-2));border:1px solid var(--border);padding:1.25rem;position:relative;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.03)}
+.hero-visual .term-line{font-family:var(--font-mono);font-size:0.65rem;line-height:1.8;color:var(--text-dim);white-space:nowrap;overflow:hidden}
+.hero-visual .term-line .prompt{color:var(--accent)}
+.hero-visual .term-line .hash-val{color:var(--text-dimmer)}
+.hero-visual .term-line .result{color:var(--text)}
+.hero-visual .term-glow{position:absolute;bottom:-30%;right:-20%;width:60%;height:60%;background:radial-gradient(ellipse,var(--accent-soft) 0%,transparent 70%);pointer-events:none}
 
-/* ─── section headers ─── */
-.sect-header{margin-bottom:2rem;opacity:0;transform:translateY(20px)}
-.sect-header h2{font-family:var(--font-display);font-size:clamp(1.5rem,2.5vw,2rem);font-weight:700;letter-spacing:-0.025em;color:#e4e4e7;line-height:1.15}
-.sect-header p{font-size:0.9rem;color:var(--text-dim);margin-top:0.5rem;max-width:480px}
+/* content wrap */
+.content-wrap{max-width:1200px;width:100%;margin:0 auto;padding:0 1.5rem 5rem;position:relative;z-index:1}
 
-/* ─── tool bento ─── */
-.tool-grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden;opacity:0;transform:translateY(30px)}
+/* bento tool grid - light */
+.sect-header{margin-bottom:2rem}
+.sect-header h2{font-family:var(--font-display);font-size:clamp(1.3rem,2.2vw,1.8rem);font-weight:700;letter-spacing:-0.03em;color:var(--text);line-height:1.15}
+.sect-header p{font-size:0.88rem;color:var(--text-dim);margin-top:0.4rem;max-width:480px}
+
+.tool-grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden;grid-auto-flow:dense}
 @media(min-width:768px){.tool-grid{grid-template-columns:1fr 1fr}}
-.tool-card{background:var(--surface);padding:1.75rem;position:relative;overflow:hidden;transition:background 0.3s}
+.tool-card{background:var(--surface);padding:1.75rem;position:relative;overflow:hidden;transition:background 0.4s}
 .tool-card:hover{background:var(--surface-2)}
 .tool-card.full{grid-column:1/-1}
-.tool-card .tc-label{font-family:var(--font-mono);font-size:0.6rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem}
-.tool-card .tc-label .hash-icon{width:6px;height:6px;border-radius:1px;background:var(--accent);display:inline-block;transform:rotate(45deg)}
-.tool-card h3{font-family:var(--font-display);font-size:1rem;font-weight:600;color:#e4e4e7;margin-bottom:0.85rem;letter-spacing:-0.01em}
-textarea.tool-input,input.tool-input,select.tool-select{font-family:var(--font-mono);font-size:0.75rem;background:#060608;color:#e4e4e7;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:0.6rem 0.75rem;width:100%;outline:none;transition:border-color 0.2s,box-shadow 0.2s}
-textarea.tool-input:focus,input.tool-input:focus,select.tool-select:focus{border-color:rgba(34,197,94,0.35);box-shadow:0 0 0 1px rgba(34,197,94,0.1)}
-textarea.tool-input{min-height:72px;resize:vertical}
-select.tool-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6' fill='%2352525b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.75rem center;padding-right:2rem}
-.input-row{display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap}
-.input-row .input-group{flex:1;min-width:0}
-.input-row .input-group label{display:block;font-family:var(--font-mono);font-size:0.6rem;font-weight:500;color:var(--text-dimmer);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem}
-.tool-actions{display:flex;gap:0.4rem;margin-top:0.65rem;flex-wrap:wrap}
-.tool-actions .tbtn{font-family:var(--font-mono);font-size:0.7rem;font-weight:500;padding:0.45rem 1rem;border-radius:40px;border:none;cursor:pointer;transition:all 0.15s;white-space:nowrap}
-.tool-actions .tbtn:active{transform:scale(0.97)}
-.tbtn-primary{background:var(--accent);color:#052e16}
-.tbtn-primary:hover{box-shadow:0 0 16px var(--accent-glow)}
-.tbtn-secondary{background:rgba(255,255,255,0.04);color:var(--text-dim);border:1px solid rgba(255,255,255,0.06)!important}
-.tbtn-secondary:hover{background:rgba(255,255,255,0.07);color:#e4e4e7}
-.tool-output{margin-top:0.85rem;border:1px solid rgba(255,255,255,0.06);border-radius:8px;background:#060608;overflow:hidden}
-.tool-output .to-header{display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0.7rem;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.04);font-family:var(--font-mono);font-size:0.6rem;color:var(--text-dimmer);text-transform:uppercase;letter-spacing:0.08em}
-.tool-output .to-body{padding:0.65rem 0.7rem;font-family:var(--font-mono);font-size:0.72rem;line-height:1.55;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow-y:auto;color:var(--text-dim);min-height:40px}
-.tool-output .to-body.loading{color:var(--text-dimmer)}.tool-output .to-body .error{color:#ef4444}.tool-output .to-body .key{color:var(--accent)}
-.cpy{background:none;border:1px solid rgba(255,255,255,0.06);color:var(--text-dimmer);font-size:0.55rem;padding:0.15rem 0.4rem;border-radius:4px;cursor:pointer;font-family:var(--font-mono);transition:all 0.12s;text-transform:uppercase;letter-spacing:0.06em}
-.cpy:hover{border-color:rgba(34,197,94,0.3);color:var(--accent);background:rgba(34,197,94,0.06)}
+.tool-card .tc-label{font-family:var(--font-mono);font-size:0.6rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.14em;margin-bottom:0.65rem;display:flex;align-items:center;gap:0.4rem}
+.tool-card .tc-label .sq{width:5px;height:5px;border-radius:1px;background:var(--accent);display:inline-block}
+.tool-card h3{font-family:var(--font-display);font-size:1rem;font-weight:600;color:var(--text);margin-bottom:0.75rem;letter-spacing:-0.01em}
+textarea.ti,input.ti,select.ts{font-family:var(--font-mono);font-size:0.75rem;background:#fcfcfa;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;width:100%;outline:none;transition:border-color 0.2s,box-shadow 0.2s}
+textarea.ti:focus,input.ti:focus,select.ts:focus{border-color:var(--accent-border);box-shadow:0 0 0 2px var(--accent-soft)}
+textarea.ti{min-height:68px;resize:vertical}
+select.ts{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6' fill='%23a8a7a2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.7rem center;padding-right:2rem}
+.ir{display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap}
+.ir .ig{flex:1;min-width:0}
+.ir .ig label{display:block;font-family:var(--font-mono);font-size:0.6rem;font-weight:500;color:var(--text-dimmer);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.3rem}
+.ta{display:flex;gap:0.4rem;margin-top:0.65rem;flex-wrap:wrap}
+.ta .tbtn{font-family:var(--font-mono);font-size:0.7rem;font-weight:500;padding:0.45rem 1rem;border-radius:40px;border:none;cursor:pointer;transition:all 0.15s;white-space:nowrap;position:relative;overflow:hidden}
+.tbtn-p{background:var(--accent);color:#f0fdf4}
+.tbtn-p:hover{box-shadow:0 0 16px var(--accent-glow)}
+.tbtn-s{background:transparent;color:var(--text-dim);border:1px solid var(--border)!important}
+.tbtn-s:hover{background:var(--accent-soft);color:var(--text);border-color:var(--accent-border)!important}
+.to{display:none;margin-top:0.85rem;border:1px solid var(--border);border-radius:8px;background:#fcfcfa;overflow:hidden}
+.to.show{display:block}
+.to .toh{display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0.7rem;background:var(--surface);border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.6rem;color:var(--text-dimmer);text-transform:uppercase;letter-spacing:0.08em}
+.to .tob{padding:0.65rem 0.7rem;font-family:var(--font-mono);font-size:0.72rem;line-height:1.55;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow-y:auto;color:var(--text-dim);min-height:40px}
+.to .tob .error{color:#dc2626}.to .tob .key{color:var(--accent)}
+.cpy{background:none;border:1px solid var(--border);color:var(--text-dimmer);font-size:0.55rem;padding:0.15rem 0.4rem;border-radius:4px;cursor:pointer;font-family:var(--font-mono);transition:all 0.12s;text-transform:uppercase;letter-spacing:0.06em;position:relative;overflow:hidden}
+.cpy:hover{border-color:var(--accent-border);color:var(--accent);background:var(--accent-soft)}
 table.res{width:100%;border-collapse:collapse;font-size:0.72rem}
-table.res thead th{text-align:left;font-weight:500;color:var(--text-dimmer);padding:0.25rem 0.4rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;font-family:var(--font-mono)}
-table.res tbody td{padding:0.25rem 0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);font-family:var(--font-mono);font-size:0.7rem}
+table.res thead th{text-align:left;font-weight:500;color:var(--text-dimmer);padding:0.25rem 0.4rem;border-bottom:1px solid var(--border);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;font-family:var(--font-mono)}
+table.res tbody td{padding:0.25rem 0.4rem;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:0.7rem}
 table.res tbody tr:last-child td{border:none}
 
-/* ─── marquee strip ─── */
-.marquee-section{padding:3rem 0;overflow:hidden;opacity:0;transform:translateY(20px)}
-.marquee-track{display:flex;gap:3rem;width:max-content;animation:marquee 40s linear infinite}
-.marquee-track:hover{animation-play-state:paused}
-.marquee-track span{font-family:var(--font-mono);font-size:0.8rem;font-weight:500;color:var(--text-dimmer);white-space:nowrap;letter-spacing:0.04em;transition:color 0.2s}
-.marquee-track span:hover{color:var(--accent)}
-.marquee-track .sep{color:rgba(34,197,94,0.2);font-weight:300}
-@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+/* carousel (testimonial-style for algorithms) */
+.carousel-section{padding:2rem 0 3rem;overflow:hidden}
+.carousel-header{display:flex;justify-content:space-between;align-items:end;margin-bottom:1.5rem}
+.carousel-header h2{font-family:var(--font-display);font-size:clamp(1.3rem,2.2vw,1.8rem);font-weight:700;letter-spacing:-0.03em;color:var(--text)}
+.carousel-header p{font-size:0.85rem;color:var(--text-dim);max-width:360px}
+.carousel-arrows{display:flex;gap:0.35rem}
+.carousel-arrows button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;position:relative;overflow:hidden}
+.carousel-arrows button:hover{background:var(--surface-2);color:var(--text);border-color:var(--border-light)}
+.carousel-track-wrap{overflow:hidden}
+.carousel-track{display:flex;gap:0.75rem;transition:transform 0.5s cubic-bezier(0.16,1,0.3,1)}
+.carousel-card{flex:0 0 calc(33.333% - 0.5rem);min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;transition:all 0.3s}
+.carousel-card:hover{background:var(--surface-2);border-color:var(--border-light)}
+.carousel-card .cc-icon{font-family:var(--font-mono);font-size:0.6rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.35rem}
+.carousel-card h4{font-family:var(--font-display);font-size:0.88rem;font-weight:600;color:var(--text);letter-spacing:-0.01em}
+.carousel-card p{font-size:0.78rem;color:var(--text-dim);margin-top:0.25rem;line-height:1.45}
+@media(max-width:768px){.carousel-card{flex:0 0 calc(50% - 0.4rem)}}
+@media(max-width:480px){.carousel-card{flex:0 0 100%}}
 
-/* ─── GSAP pinned stats section ─── */
-.pinned-section{position:relative;margin:2rem 0 1rem;opacity:0;transform:translateY(20px);border-radius:16px;overflow:hidden;border:1px solid var(--border)}
-.pinned-inner{display:flex;flex-direction:column;min-height:60dvh;background:var(--surface)}
-@media(min-width:768px){.pinned-inner{flex-direction:row}}
-.pinned-left{flex:0 0 280px;padding:2rem 1.75rem;display:flex;flex-direction:column;justify-content:center;border-bottom:1px solid var(--border)}
-@media(min-width:768px){.pinned-left{border-bottom:none;border-right:1px solid var(--border)}}
-.pinned-left h3{font-family:var(--font-display);font-size:1.15rem;font-weight:700;color:#e4e4e7;letter-spacing:-0.02em;line-height:1.2}
-.pinned-left p{font-size:0.82rem;color:var(--text-dim);margin-top:0.5rem;line-height:1.5}
-.pinned-right{flex:1;padding:1.75rem;display:flex;flex-direction:column;gap:0.75rem;justify-content:center}
-.pinned-stat{display:flex;align-items:center;gap:1rem;padding:0.75rem 0;border-bottom:1px solid rgba(255,255,255,0.03);opacity:0;transform:translateX(20px)}
-.pinned-stat:last-child{border-bottom:none}
-.pinned-stat .stat-icon{flex-shrink:0;width:36px;height:36px;border-radius:8px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.12);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:0.65rem;font-weight:600;color:var(--accent)}
-.pinned-stat .stat-body{flex:1;min-width:0}
-.pinned-stat .stat-body .stat-label{font-size:0.72rem;font-weight:500;color:var(--text-dim);font-family:var(--font-mono)}
-.pinned-stat .stat-body .stat-desc{font-size:0.82rem;color:#e4e4e7;margin-top:0.1rem}
+/* card stacking section (GSAP) */
+.stack-section{padding:3rem 0;position:relative}
+.stack-section .ss-header{margin-bottom:2rem}
+.stack-section .ss-header h2{font-family:var(--font-display);font-size:clamp(1.3rem,2.2vw,1.8rem);font-weight:700;letter-spacing:-0.03em;color:var(--text)}
+.stack-section .ss-header p{font-size:0.85rem;color:var(--text-dim);max-width:420px;margin-top:0.35rem}
+.stack-cards{position:relative;min-height:450px}
+.stack-card{position:sticky;top:100px;padding:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:1rem;box-shadow:0 2px 8px rgba(0,0,0,0.02);transition:box-shadow 0.3s}
+.stack-card:last-child{margin-bottom:0}
+.stack-card .sc-label{font-family:var(--font-mono);font-size:0.6rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:0.35rem}
+.stack-card h4{font-family:var(--font-display);font-size:1rem;font-weight:600;color:var(--text);letter-spacing:-0.01em}
+.stack-card p{font-size:0.82rem;color:var(--text-dim);margin-top:0.3rem;line-height:1.5;max-width:600px}
+.stack-card .sc-meta{font-family:var(--font-mono);font-size:0.65rem;color:var(--text-dimmer);margin-top:0.5rem}
 
-/* ─── footer ─── */
-footer{margin-top:2rem;padding:2.5rem 1.5rem;border-top:1px solid var(--border);text-align:center;opacity:0;transform:translateY(16px)}
-footer .f-inner{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:1rem}
-footer .f-links{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
-footer .f-links a{font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dimmer);text-decoration:none;transition:color 0.15s;letter-spacing:0.02em}
-footer .f-links a:hover{color:var(--accent)}
-footer .f-copy{font-size:0.7rem;color:var(--text-dimmer);font-family:var(--font-mono);letter-spacing:0.02em}
-footer .f-copy span{color:var(--accent)}
+/* footer - light */
+footer{padding:3rem 1.5rem 2rem;border-top:1px solid var(--border)}
+footer .fi{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:1rem}
+footer .fl{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
+footer .fl a{font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim);text-decoration:none;transition:color 0.15s;letter-spacing:0.02em}
+footer .fl a:hover{color:var(--accent)}
+footer .fc{font-size:0.7rem;color:var(--text-dimmer);font-family:var(--font-mono)}
+footer .fc span{color:var(--accent)}
 
-/* ─── toast ─── */
-.toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:200;background:var(--accent);color:#052e16;font-family:var(--font-mono);font-size:0.7rem;font-weight:500;padding:0.5rem 0.85rem;border-radius:8px;opacity:0;transform:translateY(8px);transition:opacity 0.2s,transform 0.2s;pointer-events:none}
+/* toast - light */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:200;background:var(--accent);color:#f0fdf4;font-family:var(--font-mono);font-size:0.7rem;font-weight:500;padding:0.5rem 0.85rem;border-radius:8px;opacity:0;transform:translateY(8px);transition:opacity 0.25s,transform 0.25s;pointer-events:none;box-shadow:0 2px 12px rgba(5,150,105,0.15)}
 .toast.show{opacity:1;transform:translateY(0)}
 
-/* ─── responsive ─── */
-@media(max-width:640px){
+/* scrubbing text reveal word wrapper */
+.word-wrap{display:inline-block;overflow:hidden;vertical-align:bottom;line-height:1.4}
+.word-wrap .word{display:inline-block;opacity:0.12;will-change:opacity}
+
+/* massive vertical spacing */
+.py-section{padding-top:5rem;padding-bottom:5rem}
+@media(min-width:768px){.py-section{padding-top:7rem;padding-bottom:7rem}}
+
+@media(max-width:768px){
+  .hero-inner{grid-template-columns:1fr;gap:2rem}
+  .hero-right{order:-1}
+  .hero-visual{max-width:100%}
+  .hero-left h1{max-width:100%}
   .nav-wrap{top:0.75rem;width:96%}
   nav.glass{padding:0.55rem 1rem}
   nav .nav-links a{padding:0.3rem 0.5rem;font-size:0.65rem}
   .hero{padding:5rem 1rem 3rem}
-  .hero h1{max-width:100%}
-  .hero-actions{flex-direction:column;width:100%;max-width:280px}
+  .hero-actions{flex-direction:column;width:100%}
   .hero-actions .btn{width:100%;text-align:center}
-  .content-wrap{padding:0 1rem 4rem}
+  .content-wrap{padding:0 1rem 3rem}
   .tool-card{padding:1.25rem}
-  .input-row{flex-direction:column}
-  .pinned-left{flex:0 0 auto;padding:1.5rem}
-  .pinned-right{padding:1.25rem}
+  .ir{flex-direction:column}
+  .stack-card{top:80px}
+  .py-section{padding-top:3rem;padding-bottom:3rem}
 }
 </style>
 </head>
 <body>
 
-<!-- ─── glass nav ─── -->
+<div class="cursor-ring" id="cursor-ring"></div>
+
 <div class="nav-wrap">
   <nav class="glass">
     <div class="logo">dev<span>.</span></div>
     <div class="nav-links">
       <a href="#tools">Tools</a>
-      <a href="#info">Info</a>
-      <a href="#about">API</a>
+      <a href="#stack">Capabilities</a>
+      <a href="#api">API</a>
     </div>
   </nav>
 </div>
 
-<!-- ─── hero ─── -->
 <section class="hero">
-  <div class="hero-bg"></div>
+  <div class="hero-bg"><div class="grad-1"></div><div class="grad-2"></div></div>
   <div class="hero-grid"></div>
-  <div class="hero-content">
-    <div class="hero-badge"><span class="dot"></span> v0.1.0</div>
-    <h1>hash &amp; cipher<br><span class="accent-word">identification</span> toolkit</h1>
-    <p>Identify hash types, crack short hashes via dictionary or brute-force, and encode or decode classical ciphers. Built for CTF and education.</p>
-    <div class="hero-actions">
-      <a href="#tools" class="btn btn-primary">Open tools</a>
-      <a href="#about" class="btn btn-ghost">API docs</a>
+  <div class="hero-inner">
+    <div class="hero-left">
+      <div class="tag"><span class="dash"></span> v0.1.0</div>
+      <h1>hash<span class="inline-pill p1"></span>cipher<br>identification <span class="inline-pill p2"></span> toolkit</h1>
+      <p class="sub">Identify hash types, crack short hashes via dictionary or brute-force, and encode or decode classical ciphers. Built for CTF and education.</p>
+      <div class="hero-actions">
+        <a href="#tools" class="btn btn-primary">Open tools</a>
+        <a href="#api" class="btn btn-ghost">API docs</a>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-visual">
+        <div class="term-line"><span class="prompt">$</span> ./devastator <span class="hash-val">5f4dcc3b5aa765d61d8327deb882cf99</span></div>
+        <div class="term-line"><span class="prompt">></span> <span class="result">MD5: password (dictionary)</span></div>
+        <div class="term-line" style="margin-top:0.6rem"><span class="prompt">$</span> ./devastator <span class="hash-val">aGVsbG8gd29ybGQ=</span></div>
+        <div class="term-line"><span class="prompt">></span> <span class="result">Base64: hello world (decoded)</span></div>
+        <div class="term-line" style="margin-top:0.6rem"><span class="prompt">$</span> ./devastator <span class="hash-val">--identify 8c6976e5b541</span></div>
+        <div class="term-line"><span class="prompt">></span> <span class="result">SHA-256 (confidence: 90%)</span></div>
+        <div class="term-glow"></div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ─── marquee ─── -->
-<section class="marquee-section" id="tools">
-  <div class="marquee-track">
-    <span>MD5</span><span class="sep">//</span>
-    <span>SHA-1</span><span class="sep">//</span>
-    <span>SHA-256</span><span class="sep">//</span>
-    <span>SHA-512</span><span class="sep">//</span>
-    <span>bcrypt</span><span class="sep">//</span>
-    <span>NTLM</span><span class="sep">//</span>
-    <span>MySQL</span><span class="sep">//</span>
-    <span>Caesar</span><span class="sep">//</span>
-    <span>ROT13</span><span class="sep">//</span>
-    <span>Atbash</span><span class="sep">//</span>
-    <span>Base64</span><span class="sep">//</span>
-    <span>Hex</span><span class="sep">//</span>
-    <span>Binary</span><span class="sep">//</span>
-    <span>Vigenere</span><span class="sep">//</span>
-    <span>BLAKE2</span><span class="sep">//</span>
-    <span>SHA3</span><span class="sep">//</span>
-    <span>GOST</span><span class="sep">//</span>
-    <span>Whirlpool</span><span class="sep">//</span>
-    <span>RIPEMD-160</span>
-    <!-- duplicate for seamless loop -->
-    <span>MD5</span><span class="sep">//</span>
-    <span>SHA-1</span><span class="sep">//</span>
-    <span>SHA-256</span><span class="sep">//</span>
-    <span>SHA-512</span><span class="sep">//</span>
-    <span>bcrypt</span><span class="sep">//</span>
-    <span>NTLM</span><span class="sep">//</span>
-    <span>MySQL</span><span class="sep">//</span>
-    <span>Caesar</span><span class="sep">//</span>
-    <span>ROT13</span><span class="sep">//</span>
-    <span>Atbash</span><span class="sep">//</span>
-    <span>Base64</span><span class="sep">//</span>
-    <span>Hex</span><span class="sep">//</span>
-    <span>Binary</span><span class="sep">//</span>
-    <span>Vigenere</span><span class="sep">//</span>
-    <span>BLAKE2</span><span class="sep">//</span>
-    <span>SHA3</span><span class="sep">//</span>
-    <span>GOST</span><span class="sep">//</span>
-    <span>Whirlpool</span><span class="sep">//</span>
-    <span>RIPEMD-160</span>
-  </div>
-</section>
-
-<!-- ─── tool bento ─── -->
-<div class="content-wrap">
+<div class="content-wrap py-section" id="tools">
   <div class="sect-header">
     <h2>Tool suite</h2>
     <p>Three interconnected tools for hash and cipher operations.</p>
   </div>
-
-  <div class="tool-grid" id="tool-grid">
-    <!-- card 1: hash identify -->
+  <div class="tool-grid">
     <div class="tool-card">
-      <div class="tc-label"><span class="hash-icon"></span> Hash identify</div>
+      <div class="tc-label"><span class="sq"></span> Hash identify</div>
       <h3>Identify</h3>
-      <textarea class="tool-input" id="hash-input" placeholder="Paste a hash — MD5, SHA-1, SHA-256, bcrypt, NTLM ..."></textarea>
-      <div class="tool-actions">
-        <button class="tbtn tbtn-primary" onclick="identifyHash()">Identify</button>
-        <button class="tbtn tbtn-secondary" onclick="crackHash()">Crack</button>
-        <button class="tbtn tbtn-secondary" onclick="bruteForce()">Brute-force</button>
+      <textarea class="ti" id="hash-input" placeholder="Paste a hash"></textarea>
+      <div class="ta">
+        <button class="tbtn tbtn-p" onclick="identifyHash()">Identify</button>
+        <button class="tbtn tbtn-s" onclick="crackHash()">Crack</button>
+        <button class="tbtn tbtn-s" onclick="bruteForce()">Brute-force</button>
       </div>
-      <div class="tool-output">
-        <div class="to-header"><span>Result</span><button class="cpy" data-target="hash-output-body">Copy</button></div>
-        <div id="hash-output-body" class="to-body"><span style="color:var(--text-dimmer);font-style:italic">Enter a hash and run a command</span></div>
+      <div class="to show" id="ho">
+        <div class="toh"><span>Result</span><button class="cpy" data-target="hob">Copy</button></div>
+        <div id="hob" class="tob"><span style="color:var(--text-dimmer);font-style:italic">Enter a hash and run a command</span></div>
       </div>
     </div>
-
-    <!-- card 2: hash crack -->
     <div class="tool-card">
-      <div class="tc-label"><span class="hash-icon"></span> Hash crack</div>
+      <div class="tc-label"><span class="sq"></span> Hash crack</div>
       <h3>Crack</h3>
-      <div class="input-row">
-        <div class="input-group">
-          <label>Wordlist path</label>
-          <input class="tool-input" id="wordlist-path" type="text" value="wordlists/sample.txt" placeholder="wordlists/rockyou.txt">
-        </div>
+      <div class="ir">
+        <div class="ig"><label>Wordlist path</label><input class="ti" id="wl" type="text" value="wordlists/sample.txt"></div>
       </div>
-      <div class="input-row">
-        <div class="input-group">
-          <label>Max length</label>
-          <select class="tool-select" id="bf-maxlen">
-            <option value="3">3 chars</option><option value="4" selected>4 chars</option>
-            <option value="5">5 chars</option><option value="6">6 chars</option>
-          </select>
-        </div>
-        <div class="input-group">
-          <label>Charset</label>
-          <select class="tool-select" id="bf-charset">
-            <option value="lowerdigit">a-z + 0-9</option>
-            <option value="lower">a-z</option>
-            <option value="alnum">a-z + A-Z + 0-9</option>
-          </select>
-        </div>
+      <div class="ir">
+        <div class="ig"><label>Max length</label><select class="ts" id="bfml"><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option></select></div>
+        <div class="ig"><label>Charset</label><select class="ts" id="bfcs"><option value="lowerdigit">a-z+0-9</option><option value="lower">a-z</option><option value="alnum">a-zA-Z0-9</option></select></div>
       </div>
-      <div class="tool-actions">
-        <button class="tbtn tbtn-primary" onclick="crackHash()">Crack</button>
-        <button class="tbtn tbtn-secondary" onclick="bruteForce()">Brute-force</button>
+      <div class="ta">
+        <button class="tbtn tbtn-p" onclick="crackHash()">Crack</button>
+        <button class="tbtn tbtn-s" onclick="bruteForce()">Brute-force</button>
       </div>
-      <div class="tool-output">
-        <div class="to-header"><span>Result</span><button class="cpy" data-target="crack-output-body">Copy</button></div>
-        <div id="crack-output-body" class="to-body"><span style="color:var(--text-dimmer);font-style:italic">Crack results appear here</span></div>
+      <div class="to" id="co">
+        <div class="toh"><span>Result</span><button class="cpy" data-target="cob">Copy</button></div>
+        <div id="cob" class="tob"><span style="color:var(--text-dimmer);font-style:italic">Crack results</span></div>
       </div>
     </div>
-
-    <!-- card 3: cipher tools (full width) -->
     <div class="tool-card full">
-      <div class="tc-label"><span class="hash-icon"></span> Cipher tools</div>
+      <div class="tc-label"><span class="sq"></span> Cipher tools</div>
       <h3>Encode, decode &amp; detect</h3>
-      <div class="input-row">
-        <div class="input-group" style="flex:2">
-          <label>Text</label>
-          <textarea class="tool-input" id="cipher-input" placeholder="Paste ciphertext or plaintext"></textarea>
-        </div>
+      <div class="ir"><div class="ig" style="flex:2"><label>Text</label><textarea class="ti" id="ci" placeholder="Paste ciphertext or plaintext"></textarea></div></div>
+      <div class="ir">
+        <div class="ig"><label>Cipher</label><select class="ts" id="ct">
+          <option value="auto">Auto-detect</option><option value="base64">Base64</option><option value="hex">Hex</option>
+          <option value="binary">Binary</option><option value="rot13">ROT13</option><option value="atbash">Atbash</option>
+          <option value="caesar">Caesar</option><option value="vigenere">Vigenere</option>
+        </select></div>
+        <div class="ig" id="cpg" style="display:none"><label>Key / shift</label><input class="ti" id="cp" type="text" placeholder="0-25"></div>
       </div>
-      <div class="input-row">
-        <div class="input-group">
-          <label>Cipher</label>
-          <select class="tool-select" id="cipher-type">
-            <option value="auto">Auto-detect</option>
-            <option value="base64">Base64</option>
-            <option value="hex">Hex</option>
-            <option value="binary">Binary</option>
-            <option value="rot13">ROT13</option>
-            <option value="atbash">Atbash</option>
-            <option value="caesar">Caesar</option>
-            <option value="vigenere">Vigenere</option>
-          </select>
-        </div>
-        <div class="input-group" id="cipher-param-group" style="display:none">
-          <label>Key / shift</label>
-          <input class="tool-input" id="cipher-param" type="text" placeholder="0-25">
-        </div>
+      <div class="ta">
+        <button class="tbtn tbtn-p" onclick="cipherDecode()">Decode</button>
+        <button class="tbtn tbtn-s" onclick="cipherEncode()">Encode</button>
+        <button class="tbtn tbtn-s" onclick="cipherDetect()">Detect</button>
       </div>
-      <div class="tool-actions">
-        <button class="tbtn tbtn-primary" onclick="cipherDecode()">Decode</button>
-        <button class="tbtn tbtn-secondary" onclick="cipherEncode()">Encode</button>
-        <button class="tbtn tbtn-secondary" onclick="cipherDetect()">Detect</button>
-      </div>
-      <div class="tool-output">
-        <div class="to-header"><span>Result</span><button class="cpy" data-target="cipher-output-body">Copy</button></div>
-        <div id="cipher-output-body" class="to-body"><span style="color:var(--text-dimmer);font-style:italic">Enter text and run a command</span></div>
+      <div class="to" id="ciphero">
+        <div class="toh"><span>Result</span><button class="cpy" data-target="cipher-ob">Copy</button></div>
+        <div id="cipher-ob" class="tob"><span style="color:var(--text-dimmer);font-style:italic">Enter text and run a command</span></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ─── GSAP pinned stat section ─── -->
-<div class="content-wrap" id="info">
-  <div class="pinned-section" id="pinned-section">
-    <div class="pinned-inner">
-      <div class="pinned-left">
-        <h3>Capabilities</h3>
-        <p>Supported hash types, cipher methods, and engine limits.</p>
-      </div>
-      <div class="pinned-right">
-        <div class="pinned-stat">
-          <div class="stat-icon">H</div>
-          <div class="stat-body"><div class="stat-label">Hash identification</div><div class="stat-desc">22 hash types via length and charset heuristics</div></div>
-        </div>
-        <div class="pinned-stat">
-          <div class="stat-icon">D</div>
-          <div class="stat-body"><div class="stat-label">Dictionary cracking</div><div class="stat-desc">MD5, SHA-1/224/256/384/512, NTLM, MySQL 3/4.1</div></div>
-        </div>
-        <div class="pinned-stat">
-          <div class="stat-icon">B</div>
-          <div class="stat-body"><div class="stat-label">Brute-force engine</div><div class="stat-desc">Rayon-parallel search with 20M attempt cap, max 6 chars</div></div>
-        </div>
-        <div class="pinned-stat">
-          <div class="stat-icon">C</div>
-          <div class="stat-body"><div class="stat-label">Cipher operations</div><div class="stat-desc">Caesar, ROT13, Atbash, Base64, Hex, Binary, Vigenere</div></div>
-        </div>
-        <div class="pinned-stat">
-          <div class="stat-icon">A</div>
-          <div class="stat-body"><div class="stat-label">Auto-detection</div><div class="stat-desc">Heuristic cipher detection via charset and readability scoring</div></div>
-        </div>
-      </div>
+<div class="content-wrap carousel-section">
+  <div class="carousel-header">
+    <div>
+      <h2>Supported algorithms</h2>
+      <p>22 hash types and 7 cipher methods with auto-detection.</p>
+    </div>
+    <div class="carousel-arrows">
+      <button id="car-prev" aria-label="Previous">&larr;</button>
+      <button id="car-next" aria-label="Next">&rarr;</button>
+    </div>
+  </div>
+  <div class="carousel-track-wrap">
+    <div class="carousel-track" id="car-track">
+      <div class="carousel-card"><div class="cc-icon">H01</div><h4>MD5</h4><p>128-bit hash, 32 hex chars. Common in legacy systems.</p></div>
+      <div class="carousel-card"><div class="cc-icon">H02</div><h4>SHA-1</h4><p>160-bit hash, 40 hex chars. Used in Git and TLS.</p></div>
+      <div class="carousel-card"><div class="cc-icon">H03</div><h4>SHA-256</h4><p>256-bit hash, 64 hex chars. Industry standard.</p></div>
+      <div class="carousel-card"><div class="cc-icon">H04</div><h4>bcrypt</h4><p>Adaptive hash with cost factor. Password storage.</p></div>
+      <div class="carousel-card"><div class="cc-icon">H05</div><h4>NTLM</h4><p>Windows authentication hash. MD4-based.</p></div>
+      <div class="carousel-card"><div class="cc-icon">C01</div><h4>Caesar</h4><p>Shift cipher. Brute-force all 25 shifts.</p></div>
+      <div class="carousel-card"><div class="cc-icon">C02</div><h4>Base64</h4><p>Binary-to-text encoding. 4-char blocks.</p></div>
+      <div class="carousel-card"><div class="cc-icon">C03</div><h4>Vigenere</h4><p>Polyalphabetic cipher with key-based shifts.</p></div>
     </div>
   </div>
 </div>
 
-<!-- ─── footer ─── -->
-<footer id="about">
-  <div class="f-inner">
-    <div class="f-links">
-      <a href="https://github.com/anomalyco/opencode" target="_blank" rel="noopener">GitHub</a>
-      <a href="#" onclick="event.preventDefault();showToast('POST /api/hash/identify, /api/hash/crack, /api/hash/bruteforce, /api/cipher/detect, /api/cipher/decode, /api/cipher/encode')">API</a>
+<div class="content-wrap stack-section" id="stack">
+  <div class="ss-header">
+    <h2>Capabilities</h2>
+    <p>Engine limits, supported operations, and detection heuristics.</p>
+  </div>
+  <div class="stack-cards" id="stack-cards">
+    <div class="stack-card" data-index="0">
+      <div class="sc-label">Engine</div>
+      <h4>Hash identification</h4>
+      <p>22 hash types detected via length and charset heuristics. Supports MD5, SHA-1/224/256/384/512, SHA3, bcrypt, NTLM, MySQL, RIPEMD-160, GOST, Whirlpool, CRC, BLAKE2, and more.</p>
+      <div class="sc-meta">Accuracy: 85-95% on known types</div>
     </div>
-    <div class="f-copy">devastator <span>v0.1.0</span> — hash &amp; cipher toolkit</div>
+    <div class="stack-card" data-index="1">
+      <div class="sc-label">Engine</div>
+      <h4>Dictionary cracking</h4>
+      <p>Multi-algorithm dictionary cracker. Supports MD5, SHA-1/224/256/384/512, NTLM, MySQL 3 and 4.1+. Iterates through all possible type identifications automatically.</p>
+      <div class="sc-meta">Wordlist: rockyou.txt compatible</div>
+    </div>
+    <div class="stack-card" data-index="2">
+      <div class="sc-label">Engine</div>
+      <h4>Brute-force</h4>
+      <p>Rayon-parallel brute-force engine with configurable charset and max length. Capped at 20 million hash computations per request for server safety.</p>
+      <div class="sc-meta">Max length: 6 characters | Charsets: lower, lower+digit, alphanumeric</div>
+    </div>
+    <div class="stack-card" data-index="3">
+      <div class="sc-label">Engine</div>
+      <h4>Cipher operations</h4>
+      <p>Seven classical cipher codecs with encode, decode, and auto-detection. Caesar (all 25 shifts), ROT13, Atbash, Base64, Hex, Binary, and Vigenere.</p>
+      <div class="sc-meta">Detection via charset scoring and readability heuristics</div>
+    </div>
+  </div>
+</div>
+
+<footer id="api">
+  <div class="fi">
+    <div class="fl">
+      <a href="#" onclick="event.preventDefault();showToast('POST /api/hash/identify, /api/hash/crack, /api/hash/bruteforce, /api/cipher/detect, /api/cipher/decode, /api/cipher/encode')">API endpoints</a>
+      <a href="https://github.com/anomalyco/opencode" target="_blank" rel="noopener">Source</a>
+    </div>
+    <div class="fc">devastator <span>v0.1.0</span> — hash &amp; cipher toolkit</div>
   </div>
 </footer>
 
@@ -379,56 +372,70 @@ footer .f-copy span{color:var(--accent)}
 <script>
 gsap.registerPlugin(ScrollTrigger);
 
+// ─── custom cursor ───
+(function(){const ring=document.getElementById('cursor-ring');let mx=0,my=0,ringX=0,ringY=0;if(window.matchMedia('(hover:hover)').matches){document.addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY});document.querySelectorAll('a,button,.tbtn,.cpy,.carousel-card').forEach(function(el){el.addEventListener('mouseenter',function(){ring.classList.add('active')});el.addEventListener('mouseleave',function(){ring.classList.remove('active')})});function tick(){ringX+=(mx-ringX)*0.12;ringY+=(my-ringY)*0.12;ring.style.transform='translate('+ringX+'px,'+ringY+'px) translate(-50%,-50%)';requestAnimationFrame(tick)}tick()}})();
+
+// ─── click ripple ───
+(function(){document.addEventListener('click',function(e){const t=e.target.closest('a,button,.tbtn,.cpy');if(!t)return;const r=document.createElement('span');r.className='ripple';const rect=t.getBoundingClientRect();const x=e.clientX-rect.left;const y=e.clientY-rect.top;r.style.left=x+'px';r.style.top=y+'px';t.style.position='relative';t.style.overflow='hidden';t.appendChild(r);setTimeout(function(){r.remove()},700)})})();
+
 // ─── toast ───
 let toastTimer;
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200)}
 
-// ─── copy buttons ───
-document.querySelectorAll('.cpy').forEach(b=>{b.addEventListener('click',function(){const el=document.getElementById(this.dataset.target);if(!el)return;const t=el.textContent;if(!t||!t.trim())return;navigator.clipboard.writeText(t).then(()=>{this.textContent='Done';showToast('Copied');setTimeout(()=>{this.textContent='Copy'},1200)}).catch(()=>{})})})
+// ─── copy ───
+document.querySelectorAll('.cpy').forEach(function(b){b.addEventListener('click',function(){const el=document.getElementById(this.dataset.target);if(!el)return;const t=el.textContent;if(!t||!t.trim())return;navigator.clipboard.writeText(t).then(()=>{this.textContent='Done';showToast('Copied');setTimeout(()=>{this.textContent='Copy'},1200)}).catch(()=>{})})});
 
-// ─── cipher param toggle ───
-document.getElementById('cipher-type').addEventListener('change',function(){const g=document.getElementById('cipher-param-group');const n=this.value==='caesar'||this.value==='vigenere';g.style.display=n?'flex':'none';document.getElementById('cipher-param').placeholder=this.value==='caesar'?'Shift (0-25)':'Key phrase'})
+// ─── cipher param ───
+document.getElementById('ct').addEventListener('change',function(){const g=document.getElementById('cpg');const n=this.value==='caesar'||this.value==='vigenere';g.style.display=n?'flex':'none';document.getElementById('cp').placeholder=this.value==='caesar'?'Shift (0-25)':'Key phrase'});
+
+// ─── output toggles ───
+function showOutput(id){document.getElementById(id).classList.add('show')}
 
 // ─── API ───
 const API='';
-function api(e,d){return fetch(API+e,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json())}
-function load(el){el.classList.add('loading');el.innerHTML=''}
-function done(el,d){el.classList.remove('loading');const j=JSON.stringify(d,null,2);el.innerHTML=j.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function fail(el,m){el.classList.remove('loading');el.innerHTML='<span class="error">'+m+'</span>'}
+function api(e,d){return fetch(API+e,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()})}
+function load(el){el.innerHTML='<span style="color:var(--text-dimmer)">Processing...</span>'}
+function done(el,d){const j=JSON.stringify(d,null,2);el.innerHTML=j.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fail(el,m){el.innerHTML='<span class="error">'+m+'</span>'}
 
-async function identifyHash(){const h=document.getElementById('hash-input').value.trim();if(!h)return;const o=document.getElementById('hash-output-body');load(o);try{const d=await api('/api/hash/identify',{hash:h});if(!d||!d.length){o.innerHTML='<span style="color:var(--text-dimmer);font-style:italic">No identification results</span>';return}let hh='<table class="res"><thead><tr><th>Type</th><th>Conf</th><th>Len</th><th>Charset</th></tr></thead><tbody>';for(const r of d){hh+='<tr><td class="key">'+(r.hash_type||'Unknown')+'</td><td>'+(r.confidence*100).toFixed(0)+'%</td><td>'+r.length+'</td><td style="color:var(--text-dimmer)">'+r.charset+'</td></tr>'}hh+='</tbody></table>';o.innerHTML=hh}catch(e){fail(o,'Request failed: '+e.message)}}
+async function identifyHash(){const h=document.getElementById('hash-input').value.trim();if(!h)return;showOutput('ho');const o=document.getElementById('hob');load(o);try{const d=await api('/api/hash/identify',{hash:h});if(!d||!d.length){o.innerHTML='<span style="color:var(--text-dimmer);font-style:italic">No results</span>';return}let hh='<table class="res"><thead><tr><th>Type</th><th>Conf</th><th>Len</th><th>Charset</th></tr></thead><tbody>';for(const r of d){hh+='<tr><td class="key">'+(r.hash_type||'Unknown')+'</td><td>'+(r.confidence*100).toFixed(0)+'%</td><td>'+r.length+'</td><td style="color:var(--text-dimmer)">'+r.charset+'</td></tr>'}hh+='</tbody></table>';o.innerHTML=hh}catch(e){fail(o,'Request failed')}}
 
-async function crackHash(){const h=document.getElementById('hash-input').value.trim();if(!h)return;const w=document.getElementById('wordlist-path').value.trim()||null;const o=document.getElementById('crack-output-body');load(o);try{const d=await api('/api/hash/crack',{hash:h,wordlist_path:w});done(o,d)}catch(e){fail(o,'Request failed: '+e.message)}}
+async function crackHash(){const h=document.getElementById('hash-input').value.trim();if(!h)return;const w=document.getElementById('wl').value.trim()||null;showOutput('co');const o=document.getElementById('cob');load(o);try{const d=await api('/api/hash/crack',{hash:h,wordlist_path:w});done(o,d)}catch(e){fail(o,'Request failed')}}
 
-async function bruteForce(){const h=document.getElementById('hash-input').value.trim();if(!h)return;const l=parseInt(document.getElementById('bf-maxlen').value);const c=document.getElementById('bf-charset').value;const o=document.getElementById('crack-output-body');load(o);try{const d=await api('/api/hash/bruteforce',{hash:h,max_length:l,charset:c});done(o,d)}catch(e){fail(o,'Request failed: '+e.message)}}
+async function bruteForce(){const h=document.getElementById('hash-input').value.trim();if(!h)return;const l=parseInt(document.getElementById('bfml').value);const c=document.getElementById('bfcs').value;showOutput('co');const o=document.getElementById('cob');load(o);try{const d=await api('/api/hash/bruteforce',{hash:h,max_length:l,charset:c});done(o,d)}catch(e){fail(o,'Request failed')}}
 
-async function cipherDecode(){const t=document.getElementById('cipher-input').value.trim();if(!t)return;const c=document.getElementById('cipher-type').value;const p=document.getElementById('cipher-param').value.trim();const o=document.getElementById('cipher-output-body');load(o);try{const b={text:t};if(c!=='auto')b.cipher=c;if(c==='caesar')b.shift=parseInt(p)||0;if(c==='vigenere')b.key=p;const d=await api('/api/cipher/decode',b);done(o,d)}catch(e){fail(o,'Request failed: '+e.message)}}
+async function cipherDecode(){const t=document.getElementById('ci').value.trim();if(!t)return;const c=document.getElementById('ct').value;const p=document.getElementById('cp').value.trim();showOutput('ciphero');const o=document.getElementById('cipher-ob');load(o);try{const b={text:t};if(c!=='auto')b.cipher=c;if(c==='caesar')b.shift=parseInt(p)||0;if(c==='vigenere')b.key=p;const d=await api('/api/cipher/decode',b);done(o,d)}catch(e){fail(o,'Request failed')}}
 
-async function cipherEncode(){const t=document.getElementById('cipher-input').value.trim();if(!t)return;const c=document.getElementById('cipher-type').value;if(c==='auto'){fail(document.getElementById('cipher-output-body'),'Select a specific cipher type for encoding');return}const p=document.getElementById('cipher-param').value.trim();const o=document.getElementById('cipher-output-body');load(o);try{const b={text:t,cipher:c};if(c==='caesar')b.shift=parseInt(p)||0;if(c==='vigenere')b.key=p;const d=await api('/api/cipher/encode',b);done(o,d)}catch(e){fail(o,'Request failed: '+e.message)}}
+async function cipherEncode(){const t=document.getElementById('ci').value.trim();if(!t)return;const c=document.getElementById('ct').value;if(c==='auto'){fail(document.getElementById('cipher-ob'),'Select a specific cipher');return}const p=document.getElementById('cp').value.trim();showOutput('ciphero');const o=document.getElementById('cipher-ob');load(o);try{const b={text:t,cipher:c};if(c==='caesar')b.shift=parseInt(p)||0;if(c==='vigenere')b.key=p;const d=await api('/api/cipher/encode',b);done(o,d)}catch(e){fail(o,'Request failed')}}
 
-async function cipherDetect(){const t=document.getElementById('cipher-input').value.trim();if(!t)return;const o=document.getElementById('cipher-output-body');load(o);try{const d=await api('/api/cipher/detect',{text:t});if(!d||!d.length){o.innerHTML='<span style="color:var(--text-dimmer);font-style:italic">No cipher detection results</span>';return}let h='<table class="res"><thead><tr><th>Cipher</th><th>Conf</th><th>Decoded</th></tr></thead><tbody>';for(const r of d){const p=r.decoded?r.decoded.substring(0,100)+(r.decoded.length>100?'…':''):'–';h+='<tr><td class="key">'+(r.cipher_type||'Unknown')+'</td><td>'+(r.confidence*100).toFixed(0)+'%</td><td style="color:var(--text-dim)">'+p+'</td></tr>'}h+='</tbody></table>';o.innerHTML=h}catch(e){fail(o,'Request failed: '+e.message)}}
+async function cipherDetect(){const t=document.getElementById('ci').value.trim();if(!t)return;showOutput('ciphero');const o=document.getElementById('cipher-ob');load(o);try{const d=await api('/api/cipher/detect',{text:t});if(!d||!d.length){o.innerHTML='<span style="color:var(--text-dimmer);font-style:italic">No results</span>';return}let h='<table class="res"><thead><tr><th>Cipher</th><th>Conf</th><th>Decoded</th></tr></thead><tbody>';for(const r of d){const p=r.decoded?r.decoded.substring(0,100)+(r.decoded.length>100?'...':''):'-';h+='<tr><td class="key">'+(r.cipher_type||'Unknown')+'</td><td>'+(r.confidence*100).toFixed(0)+'%</td><td style="color:var(--text-dim)">'+p+'</td></tr>'}h+='</tbody></table>';o.innerHTML=h}catch(e){fail(o,'Request failed')}}
 
 document.getElementById('hash-input').addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))identifyHash()});
-document.getElementById('cipher-input').addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))cipherDecode()});
+document.getElementById('ci').addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))cipherDecode()});
 
-// ─── GSAP animations ───
-gsap.fromTo('.hero-badge',{y:12,opacity:0},{y:0,opacity:1,duration:0.5,ease:'power2.out',delay:0.1});
-gsap.fromTo('.hero h1',{y:24,opacity:0},{y:0,opacity:1,duration:0.7,ease:'power3.out',delay:0.25});
-gsap.fromTo('.hero p',{y:16,opacity:0},{y:0,opacity:1,duration:0.6,ease:'power2.out',delay:0.45});
-gsap.fromTo('.hero-actions',{y:16,opacity:0},{y:0,opacity:1,duration:0.6,ease:'power2.out',delay:0.6});
+// ─── carousel ───
+(function(){const track=document.getElementById('car-track');const prev=document.getElementById('car-prev');const next=document.getElementById('car-next');let pos=0;const card=track.querySelector('.carousel-card');let cardW=card?card.offsetWidth+12:280;const gap=12;function update(){track.style.transform='translateX('+(-pos*(cardW+gap))+'px)'}const cards=track.querySelectorAll('.carousel-card');const max=cards.length-1;next.addEventListener('click',function(){if(pos<max-2){pos++}else{pos=0}update()});prev.addEventListener('click',function(){if(pos>0){pos--}else{pos=max-2}update()});window.addEventListener('resize',function(){cardW=card?card.offsetWidth+12:280})})();
 
-gsap.fromTo('.marquee-section',{y:20,opacity:0},{y:0,opacity:1,duration:0.7,ease:'power2.out',scrollTrigger:{trigger:'.marquee-section',start:'top 85%',once:true}});
+// ─── GSAP entry ───
+gsap.fromTo('.hero-left',{x:-30,opacity:0},{x:0,opacity:1,duration:0.8,ease:'power3.out',delay:0.1});
+gsap.fromTo('.hero-right',{x:30,opacity:0},{x:0,opacity:1,duration:0.8,ease:'power3.out',delay:0.25});
+gsap.fromTo('.hero-actions',{y:12,opacity:0},{y:0,opacity:1,duration:0.5,ease:'power2.out',delay:0.5});
 
-gsap.fromTo('.sect-header',{y:20,opacity:0},{y:0,opacity:1,duration:0.6,ease:'power2.out',scrollTrigger:{trigger:'.sect-header',start:'top 80%',once:true}});
+// ─── scrubbing text reveal ───
+(function(){const sub=document.querySelector('.hero .sub');if(!sub)return;const words=sub.textContent.split(' ');sub.innerHTML='';words.forEach(function(w,i){const wrap=document.createElement('span');wrap.className='word-wrap';const span=document.createElement('span');span.className='word';span.textContent=w+(i<words.length-1?' ':'');wrap.appendChild(span);sub.appendChild(wrap)});const wordEls=sub.querySelectorAll('.word');gsap.to(wordEls,{opacity:1,duration:0.01,ease:'none',scrollTrigger:{trigger:'.hero-inner',start:'top 70%',end:'bottom 30%',scrub:1.2,toggleActions:'play reverse play reverse'},stagger:0.04})})();
 
-gsap.fromTo('.tool-grid',{y:30,opacity:0},{y:0,opacity:1,duration:0.7,ease:'power3.out',scrollTrigger:{trigger:'.tool-grid',start:'top 75%',once:true}});
+// ─── tool grid reveal ───
+gsap.fromTo('.tool-grid',{y:24,opacity:0},{y:0,opacity:1,duration:0.6,ease:'power2.out',scrollTrigger:{trigger:'.tool-grid',start:'top 80%',once:true}});
 
-// pinned stats - GSAP scroll-triggered reveals
-const stats=gsap.utils.toArray('.pinned-stat');
-gsap.fromTo('.pinned-section',{y:20,opacity:0},{y:0,opacity:1,duration:0.6,ease:'power2.out',scrollTrigger:{trigger:'.pinned-section',start:'top 80%',once:true}});
-stats.forEach((s,i)=>{gsap.fromTo(s,{x:20,opacity:0},{x:0,opacity:1,duration:0.5,ease:'power2.out',scrollTrigger:{trigger:s,start:'top 85%',toggleActions:'play none none none'},delay:i*0.08})});
+// ─── carousel reveal ───
+gsap.fromTo('.carousel-header',{y:16,opacity:0},{y:0,opacity:1,duration:0.5,ease:'power2.out',scrollTrigger:{trigger:'.carousel-section',start:'top 80%',once:true}});
+gsap.fromTo('.carousel-track',{y:20,opacity:0},{y:0,opacity:1,duration:0.6,ease:'power2.out',scrollTrigger:{trigger:'.carousel-track',start:'top 75%',once:true}});
 
-gsap.fromTo('footer',{y:16,opacity:0},{y:0,opacity:1,duration:0.6,ease:'power2.out',scrollTrigger:{trigger:'footer',start:'top 90%',once:true}});
+// ─── card stacking (GSAP pin + scale cascade) ───
+(function(){const cards=gsap.utils.toArray('.stack-card');if(!cards.length)return;cards.forEach(function(c,i){if(i===cards.length-1)return;ScrollTrigger.create({trigger:c,start:'top 100px',endTrigger:cards[cards.length-1],end:'top 100px',pin:true,pinSpacing:false,invalidateOnRefresh:true});gsap.to(c,{scale:0.92,opacity:0.4,ease:'none',scrollTrigger:{trigger:cards[i+1],start:'top 85%',end:'top 100px',scrub:1}})});gsap.fromTo(cards,{y:20,opacity:0},{y:0,opacity:1,duration:0.5,ease:'power2.out',scrollTrigger:{trigger:'.stack-cards',start:'top 80%',once:true},stagger:0.08})})();
+
+// ─── footer reveal ───
+gsap.fromTo('footer',{y:12,opacity:0},{y:0,opacity:1,duration:0.5,ease:'power2.out',scrollTrigger:{trigger:'footer',start:'top 90%',once:true}});
 </script>
 </body>
 </html>
