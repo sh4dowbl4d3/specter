@@ -1,0 +1,15 @@
+[package]
+name = "web"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+actix-rt = "2"
+actix-cors = "0.7"
+serde = { workspace = true }
+serde_json = { workspace = true }
+hash_id = { path = "../hash_id" }
+cracker = { path = "../cracker" }
+cipher_tools = { path = "../cipher_tools" }
+tokio = { version = "1", features = ["full"] }

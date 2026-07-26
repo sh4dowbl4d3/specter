@@ -1,0 +1,11 @@
+[package]
+name = "cipher_tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+base64 = "0.22"
+hex = "0.4"

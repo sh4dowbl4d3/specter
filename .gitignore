@@ -1,0 +1,15 @@
+# Rust
+target/
+Cargo.lock
+
+# Wordlists (large files)
+wordlists/*.txt
+wordlists/*.gz
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
