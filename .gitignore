@@ -1,6 +1,9 @@
-# Rust
+# Rust build artifacts
 target/
-Cargo.lock
+
+# Frontend build & deps
+frontend/dist/
+frontend/node_modules/
 
 # Wordlists (large files - untrack these)
 wordlists/rockyou*

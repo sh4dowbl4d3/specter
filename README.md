@@ -1,17 +1,19 @@
 # devastator — Hash & Cipher Identification/Cracking Toolkit
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A fast web application for hash type detection, dictionary/brute-force cracking, and classical cipher encode/decode/detection. Built for CTF and educational use.
 
 ## Architecture
 
 ```
-hashbreaker/            # Cargo workspace
+devastator/             # Cargo workspace
 ├── crates/
 │   ├── hash_id/        # Hash type detection (length/charset heuristics)
 │   ├── cracker/        # Dictionary + brute-force cracking engines
 │   ├── cipher_tools/   # Classical cipher codecs + auto-detection
 │   └── web/            # Actix-web HTTP server + REST API
-├── frontend/           # Single-page web UI
+├── frontend/           # Single-page web UI (Vite + GSAP + Three.js)
 ├── wordlists/          # Dictionary files (gitignored for large files)
 └── Cargo.toml          # Workspace definition
 ```
@@ -19,9 +21,19 @@ hashbreaker/            # Cargo workspace
 ## Quick Start
 
 ```bash
-# Build and run
+# 1. Start the backend API server
 cargo run -p web
 
+# 2. In another terminal, start the frontend dev server
+cd frontend && npm install && npm run dev
+
+# 3. Open http://localhost:5173
+```
+
+For production, serve the built frontend from the Rust server:
+```bash
+cd frontend && npm install && npm run build
+cargo run -p web
 # Open http://127.0.0.1:8080
 ```
 
