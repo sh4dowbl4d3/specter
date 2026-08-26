@@ -1,4 +1,4 @@
-use crate::ciphers::{
+use crate::cipher_tools::ciphers::{
     atbash, base64_decode, binary_decode, caesar_decrypt, hex_decode, rot13, CipherType,
 };
 use serde::{Deserialize, Serialize};
@@ -102,12 +102,12 @@ fn is_likely_base64(s: &str) -> bool {
     if !valid_chars {
         return false;
     }
-    s.len() % 4 == 0 && s.chars().filter(|&c| c == '=').count() <= 2
+    s.len().is_multiple_of(4) && s.chars().filter(|&c| c == '=').count() <= 2
 }
 
 fn is_likely_hex(s: &str) -> bool {
     let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect();
-    if cleaned.len() < 2 || cleaned.len() % 2 != 0 {
+    if cleaned.len() < 2 || !cleaned.len().is_multiple_of(2) {
         return false;
     }
     cleaned.chars().all(|c| c.is_ascii_hexdigit())
@@ -115,7 +115,7 @@ fn is_likely_hex(s: &str) -> bool {
 
 fn is_likely_binary(s: &str) -> bool {
     let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect();
-    if cleaned.len() < 8 || cleaned.len() % 8 != 0 {
+    if cleaned.len() < 8 || !cleaned.len().is_multiple_of(8) {
         return false;
     }
     cleaned.chars().all(|c| c == '0' || c == '1')
@@ -151,4 +151,39 @@ fn is_readable_text(s: &str) -> bool {
         .count();
     let ratio = printable as f64 / s.len() as f64;
     ratio > 0.85 && s.len() > 2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_base64() {
+        let results = detect_cipher("aGVsbG8=");
+        assert!(results.iter().any(|r| r.cipher_type == CipherType::Base64));
+    }
+
+    #[test]
+    fn test_detect_hex() {
+        let results = detect_cipher("68656c6c6f");
+        assert!(results.iter().any(|r| r.cipher_type == CipherType::Hex));
+    }
+
+    #[test]
+    fn test_detect_binary() {
+        let results = detect_cipher("01101000 01100101 01101100 01101100 01101111");
+        assert!(results.iter().any(|r| r.cipher_type == CipherType::Binary));
+    }
+
+    #[test]
+    fn test_detect_rot13() {
+        let results = detect_cipher("uryyb");
+        assert!(results.iter().any(|r| r.cipher_type == CipherType::Rot13));
+    }
+
+    #[test]
+    fn test_detect_empty() {
+        let results = detect_cipher("");
+        assert!(results.is_empty());
+    }
 }

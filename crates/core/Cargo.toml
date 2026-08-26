@@ -1,0 +1,14 @@
+[package]
+name = "devastator-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+md5 = "0.7"
+sha1 = "0.10"
+sha2 = "0.10"
+md4 = "0.10"
+base64 = "0.22"
+hex = "0.4"

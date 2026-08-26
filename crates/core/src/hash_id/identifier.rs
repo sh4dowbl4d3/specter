@@ -84,32 +84,42 @@ pub fn identify(input: &str) -> Vec<Identification> {
         return results;
     }
 
-    macro_rules! match_len {
-        ($l:expr, $ht:expr, $conf:expr) => {
-            if len == $l {
-                results.push(Identification {
-                    hash_type: $ht,
-                    confidence: $conf,
-                    length: len,
-                    charset: charset.clone(),
-                });
-            }
-        };
+    if is_all_hex(trimmed) {
+        macro_rules! match_len {
+            ($l:expr, $ht:expr, $conf:expr) => {
+                if len == $l {
+                    results.push(Identification {
+                        hash_type: $ht,
+                        confidence: $conf,
+                        length: len,
+                        charset: charset.clone(),
+                    });
+                }
+            };
+        }
+
+        match_len!(32, HashType::Md5, 0.9);
+        match_len!(40, HashType::Sha1, 0.9);
+        match_len!(56, HashType::Sha224, 0.85);
+        match_len!(64, HashType::Sha256, 0.9);
+        match_len!(96, HashType::Sha384, 0.85);
+        match_len!(128, HashType::Sha512, 0.9);
+        match_len!(16, HashType::Mysql3, 0.7);
+        match_len!(40, HashType::Ripemd160, 0.8);
+        match_len!(56, HashType::Sha3224, 0.8);
+        match_len!(64, HashType::Sha3256, 0.8);
+        match_len!(96, HashType::Sha3384, 0.8);
+        match_len!(128, HashType::Sha3512, 0.8);
     }
 
-    match_len!(32, HashType::Md5, 0.9);
-    match_len!(40, HashType::Sha1, 0.9);
-    match_len!(56, HashType::Sha224, 0.85);
-    match_len!(64, HashType::Sha256, 0.9);
-    match_len!(96, HashType::Sha384, 0.85);
-    match_len!(128, HashType::Sha512, 0.9);
-    match_len!(16, HashType::Mysql3, 0.7);
-    match_len!(41, HashType::Mysql41, 0.75);
-    match_len!(40, HashType::Ripemd160, 0.8);
-    match_len!(56, HashType::Sha3224, 0.8);
-    match_len!(64, HashType::Sha3256, 0.8);
-    match_len!(96, HashType::Sha3384, 0.8);
-    match_len!(128, HashType::Sha3512, 0.8);
+    if is_mysql41(trimmed) {
+        results.push(Identification {
+            hash_type: HashType::Mysql41,
+            confidence: 0.98,
+            length: len,
+            charset: charset.clone(),
+        });
+    }
 
     if len == 32 && is_all_hex(trimmed) {
         append_if_missing(&mut results, HashType::Md5, 0.9, len, &charset);
@@ -209,10 +219,17 @@ fn is_all_uppercase_hex(s: &str) -> bool {
 }
 
 fn is_bcrypt(s: &str) -> bool {
-    s.starts_with("$2y$")
-        || s.starts_with("$2b$")
-        || s.starts_with("$2a$")
-        || s.starts_with("$2$")
+    if s.len() != 60 || !(s.starts_with("$2a$") || s.starts_with("$2b$") || s.starts_with("$2y$")) {
+        return false;
+    }
+    let Some(cost) = s.get(4..6).and_then(|value| value.parse::<u8>().ok()) else {
+        return false;
+    };
+    (4..=31).contains(&cost) && s.as_bytes().get(6) == Some(&b'$')
+}
+
+fn is_mysql41(s: &str) -> bool {
+    s.len() == 41 && s.starts_with('*') && s[1..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
 #[cfg(test)]
@@ -249,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_identify_bcrypt() {
-        let hash = "$2b$12$LJ3m4ys3Lk0TSwHZ5gXQ.OGqSJ4T4J5Y5X5z5y5X5c5j5k5l5m5n5o5";
+        let hash = "$2b$12$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
         let results = identify(hash);
         assert!(results.iter().any(|r| r.hash_type == HashType::Bcrypt));
     }

@@ -1,0 +1,48 @@
+[package]
+name = "wasm-frontend"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Blob",
+    "Clipboard",
+    "CssStyleDeclaration",
+    "DataTransfer",
+    "Document",
+    "DomTokenList",
+    "DragEvent",
+    "Element",
+    "Event",
+    "EventTarget",
+    "File",
+    "FileList",
+    "HtmlAnchorElement",
+    "HtmlButtonElement",
+    "HtmlDivElement",
+    "HtmlElement",
+    "HtmlHeadElement",
+    "HtmlInputElement",
+    "HtmlLabelElement",
+    "HtmlOptionElement",
+    "HtmlPreElement",
+    "HtmlSelectElement",
+    "HtmlSpanElement",
+    "HtmlTextAreaElement",
+    "KeyboardEvent",
+    "MouseEvent",
+    "Navigator",
+    "Node",
+    "NodeList",
+    "Url",
+    "Window",
+] }
+console_error_panic_hook = "0.1"
+serde_json = "1"
+devastator-core = { path = "../core" }

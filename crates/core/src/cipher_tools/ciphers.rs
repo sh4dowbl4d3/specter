@@ -1,4 +1,4 @@
-use crate::error::CipherError;
+use crate::cipher_tools::error::CipherError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -108,7 +108,7 @@ pub fn hex_encode(input: &str) -> String {
 
 pub fn binary_decode(input: &str) -> Result<String, CipherError> {
     let cleaned: String = input.chars().filter(|c| !c.is_whitespace()).collect();
-    if cleaned.len() % 8 != 0 {
+    if !cleaned.len().is_multiple_of(8) {
         return Err(CipherError::Decode(
             "Binary: length not multiple of 8".to_string(),
         ));
@@ -119,8 +119,7 @@ pub fn binary_decode(input: &str) -> Result<String, CipherError> {
         .map(|chunk| {
             let s = std::str::from_utf8(chunk)
                 .map_err(|_| CipherError::Decode("Binary: invalid utf8".to_string()))?;
-            u8::from_str_radix(s, 2)
-                .map_err(|e| CipherError::Decode(format!("Binary: {}", e)))
+            u8::from_str_radix(s, 2).map_err(|e| CipherError::Decode(format!("Binary: {}", e)))
         })
         .collect();
     let bytes = bytes?;
@@ -140,7 +139,14 @@ pub fn vigenere_decrypt(input: &str, key: &str) -> String {
     if key.is_empty() {
         return input.to_string();
     }
-    let key_lower: Vec<u8> = key.to_ascii_lowercase().bytes().collect();
+    let key_lower: Vec<u8> = key
+        .bytes()
+        .filter(|byte| byte.is_ascii_alphabetic())
+        .map(|byte| byte.to_ascii_lowercase())
+        .collect();
+    if key_lower.is_empty() {
+        return input.to_string();
+    }
     let key_len = key_lower.len();
     let mut key_idx = 0;
 
@@ -164,7 +170,14 @@ pub fn vigenere_encrypt(input: &str, key: &str) -> String {
     if key.is_empty() {
         return input.to_string();
     }
-    let key_lower: Vec<u8> = key.to_ascii_lowercase().bytes().collect();
+    let key_lower: Vec<u8> = key
+        .bytes()
+        .filter(|byte| byte.is_ascii_alphabetic())
+        .map(|byte| byte.to_ascii_lowercase())
+        .collect();
+    if key_lower.is_empty() {
+        return input.to_string();
+    }
     let key_len = key_lower.len();
     let mut key_idx = 0;
 
@@ -182,4 +195,65 @@ pub fn vigenere_encrypt(input: &str, key: &str) -> String {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_caesar_decrypt() {
+        assert_eq!(caesar_decrypt("khoor", 3), "hello");
+    }
+
+    #[test]
+    fn test_caesar_encrypt() {
+        assert_eq!(caesar_encrypt("hello", 3), "khoor");
+    }
+
+    #[test]
+    fn test_rot13() {
+        assert_eq!(rot13("uryyb"), "hello");
+    }
+
+    #[test]
+    fn test_atbash() {
+        assert_eq!(atbash("svool"), "hello");
+    }
+
+    #[test]
+    fn test_base64_roundtrip() {
+        let encoded = base64_encode("hello world");
+        assert_eq!(base64_decode(&encoded).unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_hex_roundtrip() {
+        let encoded = hex_encode("hello");
+        assert_eq!(hex_decode(&encoded).unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_binary_roundtrip() {
+        let encoded = binary_encode("hello");
+        assert_eq!(binary_decode(&encoded).unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_vigenere_invalid_key_is_safe() {
+        assert_eq!(vigenere_encrypt("hello", "123!"), "hello");
+        assert_eq!(vigenere_decrypt("hello", "é"), "hello");
+    }
+
+    #[test]
+    fn test_vigenere_roundtrip() {
+        let encrypted = vigenere_encrypt("hello", "key");
+        assert_eq!(vigenere_decrypt(&encrypted, "key"), "hello");
+    }
+
+    #[test]
+    fn test_caesar_bruteforce() {
+        let results = caesar_bruteforce("khoor");
+        assert!(results.iter().any(|(_, s)| s == "hello"));
+    }
 }

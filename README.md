@@ -2,99 +2,63 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A fast web application for hash type detection, dictionary/brute-force cracking, and classical cipher encode/decode/detection. Built for CTF and educational use.
+A browser-based hash type detector, dictionary/brute-force cracker, and classical cipher encode/decode/detection toolkit. All processing runs **entirely in the browser** via WebAssembly — no server needed.
+
+## Try It
+
+Deployed at: `https://<user>.github.io/devastator/`
 
 ## Architecture
 
 ```
-devastator/             # Cargo workspace
+devastator/                      # Cargo workspace
 ├── crates/
-│   ├── hash_id/        # Hash type detection (length/charset heuristics)
-│   ├── cracker/        # Dictionary + brute-force cracking engines
-│   ├── cipher_tools/   # Classical cipher codecs + auto-detection
-│   └── web/            # Actix-web HTTP server + REST API
-├── frontend/           # Single-page web UI (Vite + GSAP + Three.js)
-├── wordlists/          # Dictionary files (gitignored for large files)
-└── Cargo.toml          # Workspace definition
+│   ├── core/                    # Pure algorithm crate (no I/O, no threading)
+│   │   ├── hash_id/             # Hash type detection (length/charset heuristics)
+│   │   ├── cracker/             # Dictionary + brute-force cracking engines
+│   │   └── cipher_tools/        # Classical cipher codecs + auto-detection
+│   └── wasm-frontend/           # WASM browser frontend (Trunk + wasm-bindgen)
+├── wordlists/                   # Dictionary files (gitignored for large files)
+└── Cargo.toml                   # Workspace definition
 ```
 
-## Quick Start
+## Quick Start (WASM Frontend)
 
 ```bash
-# 1. Start the backend API server
-cargo run -p web
+# Prerequisites
+cargo install trunk
+rustup target add wasm32-unknown-unknown
 
-# 2. In another terminal, start the frontend dev server
-cd frontend && npm install && npm run dev
+# Build
+cd crates/wasm-frontend && trunk build --release
 
-# 3. Open http://localhost:5173
+# Serve locally (hot-reload)
+trunk serve --port 8080
+# Open http://localhost:8080
 ```
 
-For production, serve the built frontend from the Rust server:
-```bash
-cd frontend && npm install && npm run build
-cargo run -p web
-# Open http://127.0.0.1:8080
-```
+## Usage
 
-## API Reference
+Upload a wordlist or paste hashes directly in the browser. All operations run client-side:
 
-All endpoints accept `POST` with `Content-Type: application/json`.
+- **Identify**: Paste a hash to detect candidate types (MD5, SHA-1/2/3, NTLM, bcrypt, MySQL, etc.)
+- **Crack**: Dictionary attack (upload or paste a wordlist) or bounded brute-force (20M attempts maximum)
+- **Ciphers**: Encode, decode, or auto-detect 7 classical ciphers (Base64, Hex, Binary, ROT13, Atbash, Caesar, Vigenère)
+- **Files**: Upload files to compute byte-accurate MD5/SHA-1/224/256/384/512 hashes or apply text cipher transforms (64 MiB limit)
 
-### Hash Identification
+## Deploy to GitHub Pages
 
-```bash
-curl -X POST http://localhost:8080/api/hash/identify \
-  -H 'Content-Type: application/json' \
-  -d '{"hash":"5f4dcc3b5aa765d61d8327deb882cf99"}'
-```
+Push to `main` — the [GitHub Actions workflow](.github/workflows/deploy.yml) auto-deploys to Pages.
 
-Response:
-```json
-[{"hash_type":"Md5","confidence":0.9,"length":32,"charset":"lower+digit"}]
-```
-
-### Dictionary Crack
+Manual build for Pages (uses repo name as base path):
 
 ```bash
-curl -X POST http://localhost:8080/api/hash/crack \
-  -H 'Content-Type: application/json' \
-  -d '{"hash":"5f4dcc3b5aa765d61d8327deb882cf99","wordlist_path":"wordlists/rockyou.txt"}'
+trunk build --release --public-url "./"
 ```
 
-### Brute-Force
+## Detected Hash Types
 
-```bash
-curl -X POST http://localhost:8080/api/hash/bruteforce \
-  -H 'Content-Type: application/json' \
-  -d '{"hash":"5f4dcc3b5aa765d61d8327deb882cf99","max_length":4,"charset":"lowerdigit"}'
-```
-
-### Cipher Decode
-
-```bash
-curl -X POST http://localhost:8080/api/cipher/decode \
-  -H 'Content-Type: application/json' \
-  -d '{"text":"aGVsbG8gd29ybGQ=","cipher":"base64"}'
-```
-
-### Cipher Encode
-
-```bash
-curl -X POST http://localhost:8080/api/cipher/encode \
-  -H 'Content-Type: application/json' \
-  -d '{"text":"hello world","cipher":"hex"}'
-```
-
-### Cipher Auto-Detect
-
-```bash
-curl -X POST http://localhost:8080/api/cipher/detect \
-  -H 'Content-Type: application/json' \
-  -d '{"text":"aGVsbG8gd29ybGQ="}'
-```
-
-## Supported Hash Types
+The identifier reports candidate types from format heuristics. Dictionary cracking is implemented for MD5, SHA-1/2, NTLM, and MySQL formats; the remaining types are detection-only.
 
 | Type | Length | Pattern |
 |------|--------|---------|
@@ -121,21 +85,16 @@ curl -X POST http://localhost:8080/api/cipher/detect \
 - Binary
 - Vigenère (key-based)
 
-## Rate Limiting
-
-- Brute-force capped at 20M hash computations per request
-- `max_length` limited to 6 characters via API
-- Use responsibly — this is for education and CTF challenges
-
 ## Development
 
 ```bash
 # Run all tests
-cargo test
+cargo test --workspace --all-targets
 
-# Run with logging
-RUST_LOG=info cargo run -p web
+# Check the actual WASM target
+cargo check -p wasm-frontend --target wasm32-unknown-unknown
 
-# Build a specific crate
-cargo build -p hash_id
+# Quality gates
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
 ```

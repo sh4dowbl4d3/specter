@@ -5,6 +5,9 @@ target/
 frontend/dist/
 frontend/node_modules/
 
+# WASM frontend build output
+crates/wasm-frontend/dist/
+
 # Wordlists (large files - untrack these)
 wordlists/rockyou*
 wordlists/*.gz
@@ -12,6 +15,9 @@ wordlists/*.gz
 # IDE
 .vscode/
 .idea/
+
+# Claude Code local config
+.claude/
 
 # OS
 .DS_Store
