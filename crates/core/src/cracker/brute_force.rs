@@ -21,7 +21,7 @@ pub struct BruteForceResult {
     pub method: String,
 }
 
-const MAX_ATTEMPTS: u64 = 20_000_000;
+pub const MAX_ATTEMPTS: u64 = 20_000_000;
 
 pub fn brute_force_crack(config: &BruteForceConfig) -> BruteForceResult {
     let charset_bytes: &[u8] = match config.charset.as_str() {

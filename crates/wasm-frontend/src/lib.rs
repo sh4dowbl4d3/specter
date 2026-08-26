@@ -1,4 +1,7 @@
 use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 use devastator_core::cipher_tools::ciphers::*;
 use devastator_core::cipher_tools::detect_cipher;
@@ -449,6 +452,13 @@ fn setup_crack() {
     });
 
     click_handler("cr-btn-bf", || {
+        // A click while a run is active means "cancel".
+        let active = CRACK_RUN.with(|r| r.borrow().is_some());
+        if active {
+            CRACK_RUN.with(|r| *r.borrow_mut() = None);
+            return;
+        }
+
         let hash = val("cr-hash-input");
         if hash.trim().is_empty() {
             text("cr-output-body", "Enter a hash first");
@@ -456,25 +466,165 @@ fn setup_crack() {
         }
         let max_len: u8 = val("cr-bf-maxlen").parse().unwrap_or(4);
         let charset = val("cr-bf-charset");
-        show_progress("cr");
         let config = BruteForceConfig {
             hash: hash.clone(),
             max_length: max_len,
             charset,
         };
-        let result = brute_force_crack(&config);
-        hide_progress("cr");
-        let json = serde_json::to_string_pretty(&result).unwrap_or_default();
-        text("cr-output-body", &json);
-        if result.cracked {
-            toast(&format!(
-                "Cracked: {}",
-                result.plaintext.as_deref().unwrap_or("?")
-            ));
-        } else {
-            toast(&format!("Not found after {} attempts", result.attempts));
+        let session = match BruteForceSession::new(&config) {
+            Ok(s) => s,
+            Err(e) => {
+                text("cr-output-body", &format!("Brute-force unavailable: {e}"));
+                toast_error(&format!("Cannot start brute-force: {e}"));
+                return;
+            }
+        };
+
+        // Run identity: only the newest run may write output or UI state.
+        let run_id = next_run_id();
+        CRACK_RUN.with(|r| *r.borrow_mut() = Some(run_id));
+
+        let total = session.keyspace_size().unwrap_or(0).min(MAX_ATTEMPTS);
+        text(
+            "cr-progress-text",
+            &format!("Cracking — 0 / {}", format_count(total)),
+        );
+        show_progress("cr");
+        set_bf_button_label("Cancel");
+
+        let cell: Rc<RefCell<Option<BruteForceSession>>> = Rc::new(RefCell::new(Some(session)));
+        schedule_cracking_step(run_id, cell, total);
+    });
+}
+
+/// Runs one batch of the cracking session, updates progress, and re-schedules
+/// itself via `setTimeout(0)` so the browser can paint between batches.
+/// Cancels cleanly when the run id is superseded or cleared.
+fn schedule_cracking_step(run_id: u64, cell: Rc<RefCell<Option<BruteForceSession>>>, total: u64) {
+    spawn_local(async move {
+        // Stale run (superseded by a newer one, or cancelled): drop state.
+        if CRACK_RUN.with(|r| *r.borrow()) != Some(run_id) {
+            cell.borrow_mut().take();
+            return;
+        }
+
+        const BATCH: u32 = 250_000;
+        let outcome = match cell.borrow_mut().as_mut() {
+            Some(session) => session.step(BATCH),
+            None => StepOutcome::Exhausted,
+        };
+        let attempts = cell.borrow().as_ref().map(|s| s.attempts()).unwrap_or(0);
+
+        match outcome {
+            StepOutcome::Continue => {
+                text(
+                    "cr-progress-text",
+                    &format!(
+                        "Cracking — {} / {} ({:.0}%)",
+                        format_count(attempts),
+                        format_count(total),
+                        if total > 0 {
+                            attempts as f64 / total as f64 * 100.0
+                        } else {
+                            100.0
+                        }
+                    ),
+                );
+                let next_cell = cell.clone();
+                let cb = Closure::once(move || {
+                    schedule_cracking_step(run_id, next_cell, total);
+                });
+                window()
+                    .unwrap()
+                    .set_timeout_with_callback_and_timeout_and_arguments_0(
+                        cb.as_ref().unchecked_ref(),
+                        0,
+                    )
+                    .ok();
+                cb.forget();
+            }
+            StepOutcome::Cracked => {
+                let result = finish_session(&cell, StepOutcome::Cracked);
+                end_run(Some(run_id));
+                hide_progress("cr");
+                let json = serde_json::to_string_pretty(&result).unwrap_or_default();
+                text("cr-output-body", &json);
+                toast(&format!(
+                    "Cracked: {}",
+                    result.plaintext.as_deref().unwrap_or("?")
+                ));
+            }
+            StepOutcome::Exhausted => {
+                let cancelled = CRACK_RUN.with(|r| r.borrow().is_none());
+                if !cancelled {
+                    let result = finish_session(&cell, StepOutcome::Exhausted);
+                    end_run(Some(run_id));
+                    let json = serde_json::to_string_pretty(&result).unwrap_or_default();
+                    text("cr-output-body", &json);
+                    toast(&format!(
+                        "Not found after {} attempts",
+                        format_count(result.attempts)
+                    ));
+                } else {
+                    // User-initiated cancel: discard silently.
+                    cell.borrow_mut().take();
+                    end_run(Some(run_id));
+                }
+                hide_progress("cr");
+            }
         }
     });
+}
+
+fn finish_session(
+    cell: &Rc<RefCell<Option<BruteForceSession>>>,
+    outcome: StepOutcome,
+) -> BruteForceResult {
+    cell.borrow_mut()
+        .take()
+        .map(|mut s| s.finish(outcome))
+        .unwrap_or(BruteForceResult {
+            cracked: false,
+            plaintext: None,
+            attempts: 0,
+            method: "brute-force (cancelled)".to_string(),
+        })
+}
+
+thread_local! {
+    /// Identity of the active crack run. Set to `None` to cancel; stale async
+    /// tasks notice and bail out without writing output.
+    static CRACK_RUN: RefCell<Option<u64>> = const { RefCell::new(None) };
+}
+
+static NEXT_RUN_ID: AtomicU64 = AtomicU64::new(1);
+
+fn next_run_id() -> u64 {
+    NEXT_RUN_ID.fetch_add(1, Ordering::Relaxed)
+}
+
+/// Ends the current run (if `run_id` matches) and resets the button label.
+fn end_run(run_id: Option<u64>) {
+    CRACK_RUN.with(|r| {
+        if run_id.is_none() || *r.borrow() == run_id {
+            *r.borrow_mut() = None;
+        }
+    });
+    set_bf_button_label("Brute-force");
+}
+
+fn set_bf_button_label(label: &str) {
+    el("cr-btn-bf").set_text_content(Some(label));
+}
+
+fn format_count(n: u64) -> String {
+    if n >= 1_000_000 {
+        format!("{:.1}M", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{:.1}K", n as f64 / 1_000.0)
+    } else {
+        n.to_string()
+    }
 }
 
 fn valid_vigenere_key(key: &str) -> bool {
