@@ -25,17 +25,20 @@ pub fn crack_from_list(hash: &str, wordlist: &str) -> Option<CrackResult> {
         hash_types.push(HashType::Ntlm);
     }
 
+    // Trim once up front; the same words are tested against every hash type.
+    let words: Vec<&str> = wordlist
+        .lines()
+        .map(|line| line.trim())
+        .filter(|w| !w.is_empty())
+        .collect();
+
     for ht in &hash_types {
         let hasher = match get_hasher(ht) {
             Some(h) => h,
             None => continue,
         };
 
-        for line in wordlist.lines() {
-            let word = line.trim();
-            if word.is_empty() {
-                continue;
-            }
+        for word in words.iter().copied() {
             if hasher(word).eq_ignore_ascii_case(&trimmed_hash) {
                 return Some(CrackResult {
                     hash: hash.to_string(),
@@ -79,6 +82,39 @@ pub fn hash_md5(s: &str) -> String {
 
 pub fn hash_md5_bytes(bytes: &[u8]) -> String {
     format!("{:x}", md5::compute(bytes))
+}
+
+/// Raw (unhexed) digests for hot cracking paths — no per-candidate allocation.
+pub(crate) mod raw {
+    pub fn md5(bytes: &[u8]) -> [u8; 16] {
+        md5::compute(bytes).0
+    }
+
+    pub fn sha1(bytes: &[u8]) -> [u8; 20] {
+        use sha1::Digest;
+        sha1::Sha1::digest(bytes).into()
+    }
+
+    pub fn sha256(bytes: &[u8]) -> [u8; 32] {
+        use sha2::Digest;
+        sha2::Sha256::digest(bytes).into()
+    }
+}
+
+/// Compares the lowercase hex of `digest` with `target` without allocating.
+pub(crate) fn hex_eq_ignore_case(digest: &[u8], target: &[u8]) -> bool {
+    if digest.len() * 2 != target.len() {
+        return false;
+    }
+    const HEX_LOWER: &[u8; 16] = b"0123456789abcdef";
+    for (i, &b) in digest.iter().enumerate() {
+        if !HEX_LOWER[usize::from(b >> 4)].eq_ignore_ascii_case(&target[2 * i])
+            || !HEX_LOWER[usize::from(b & 0x0f)].eq_ignore_ascii_case(&target[2 * i + 1])
+        {
+            return false;
+        }
+    }
+    true
 }
 
 pub fn hash_sha1(s: &str) -> String {

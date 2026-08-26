@@ -1,4 +1,4 @@
-use crate::cracker::dictionary::{hash_md5, hash_sha1, hash_sha256};
+use crate::cracker::dictionary::{hex_eq_ignore_case, raw};
 use crate::hash_id::{identify, HashType};
 use serde::{Deserialize, Serialize};
 
@@ -62,10 +62,11 @@ pub fn brute_force_crack(config: &BruteForceConfig) -> BruteForceResult {
         };
     }
 
-    let hasher: fn(&str) -> String = match ht {
-        HashType::Md5 => hash_md5,
-        HashType::Sha1 => hash_sha1,
-        HashType::Sha256 => hash_sha256,
+    type RawHasher = fn(&[u8]) -> Vec<u8>;
+    let hasher: RawHasher = match ht {
+        HashType::Md5 => |b| raw::md5(b).to_vec(),
+        HashType::Sha1 => |b| raw::sha1(b).to_vec(),
+        HashType::Sha256 => |b| raw::sha256(b).to_vec(),
         _ => {
             return BruteForceResult {
                 cracked: false,
@@ -88,14 +89,17 @@ pub fn brute_force_crack(config: &BruteForceConfig) -> BruteForceResult {
         }
         let limit = candidate_count.min(budget);
         let mut indices = vec![0usize; len];
+        let mut candidate = vec![0u8; len];
 
         for _ in 0..limit {
-            let word: String = indices.iter().map(|&i| charset_bytes[i] as char).collect();
+            for (slot, &i) in candidate.iter_mut().zip(indices.iter()) {
+                *slot = charset_bytes[i];
+            }
             total_attempts += 1;
-            if hasher(&word).eq_ignore_ascii_case(&trimmed) {
+            if hex_eq_ignore_case(&hasher(&candidate), trimmed.as_bytes()) {
                 return BruteForceResult {
                     cracked: true,
-                    plaintext: Some(word),
+                    plaintext: Some(String::from_utf8_lossy(&candidate).into_owned()),
                     attempts: total_attempts,
                     method: format!("brute-force (len={}, charset={})", len, config.charset),
                 };
@@ -135,6 +139,7 @@ fn is_brute_forceable(hash: &str, ht: &HashType) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cracker::dictionary::hash_md5;
 
     #[test]
     fn test_brute_force_md5_test() {
