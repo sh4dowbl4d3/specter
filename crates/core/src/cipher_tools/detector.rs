@@ -74,7 +74,9 @@ pub fn detect_cipher(input: &str) -> Vec<CipherDetection> {
         });
     }
 
+    // Shift 13 is reported as ROT13 above; skip it here to avoid duplicates.
     let shift_results: Vec<(u8, String)> = (1..26)
+        .filter(|&s| s != 13)
         .map(|s| (s, caesar_decrypt(trimmed, s)))
         .filter(|(_, d)| is_readable_text(d))
         .collect();
@@ -185,5 +187,25 @@ mod tests {
     fn test_detect_empty() {
         let results = detect_cipher("");
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_detect_whitespace_only_is_empty() {
+        let results = detect_cipher("   \n\t  ");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_detect_rot13_not_duplicated_as_caesar() {
+        // "uryyb jbeyq" decodes via shift 13; it must appear once, as ROT13,
+        // not a second time as a Caesar candidate.
+        let results = detect_cipher("uryyb jbeyq");
+        assert_eq!(
+            results
+                .iter()
+                .filter(|r| r.decoded.as_deref() == Some("hello world"))
+                .count(),
+            1
+        );
     }
 }

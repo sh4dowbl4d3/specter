@@ -113,16 +113,16 @@ pub fn binary_decode(input: &str) -> Result<String, CipherError> {
             "Binary: length not multiple of 8".to_string(),
         ));
     }
-    let bytes: Result<Vec<u8>, _> = cleaned
+    if !cleaned.bytes().all(|b| b == b'0' || b == b'1') {
+        return Err(CipherError::Decode(
+            "Binary: only 0 and 1 are valid".to_string(),
+        ));
+    }
+    let bytes: Vec<u8> = cleaned
         .as_bytes()
         .chunks(8)
-        .map(|chunk| {
-            let s = std::str::from_utf8(chunk)
-                .map_err(|_| CipherError::Decode("Binary: invalid utf8".to_string()))?;
-            u8::from_str_radix(s, 2).map_err(|e| CipherError::Decode(format!("Binary: {}", e)))
-        })
+        .map(|chunk| chunk.iter().fold(0u8, |acc, &b| (acc << 1) | (b - b'0')))
         .collect();
-    let bytes = bytes?;
     String::from_utf8(bytes).map_err(|e| CipherError::Decode(format!("UTF-8: {}", e)))
 }
 
@@ -255,5 +255,36 @@ mod tests {
     fn test_caesar_bruteforce() {
         let results = caesar_bruteforce("khoor");
         assert!(results.iter().any(|(_, s)| s == "hello"));
+    }
+
+    #[test]
+    fn test_binary_decode_rejects_non_binary() {
+        // from_str_radix used to accept signs and other radix-2 oddities here.
+        assert!(binary_decode("1010-0101").is_err());
+        assert!(binary_decode("+0001101").is_err());
+        assert!(binary_decode("abcdefgh").is_err());
+    }
+
+    #[test]
+    fn test_binary_decode_boundary_values() {
+        assert_eq!(binary_decode("01111111").unwrap(), "\u{7f}");
+        // A lone 0xFF byte is not valid UTF-8, so decoding must fail cleanly.
+        assert!(binary_decode("11111111").is_err());
+    }
+
+    #[test]
+    fn test_base64_decode_invalid_input_errors() {
+        assert!(base64_decode("!!!!").is_err());
+        assert!(base64_decode("abc").is_err()); // not a multiple of 4
+    }
+
+    #[test]
+    fn test_hex_decode_odd_length_errors() {
+        assert!(hex_decode("abc").is_err());
+    }
+
+    #[test]
+    fn test_hex_decode_rejects_non_hex() {
+        assert!(hex_decode("zzzz").is_err());
     }
 }

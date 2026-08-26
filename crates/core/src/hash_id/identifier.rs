@@ -121,17 +121,7 @@ pub fn identify(input: &str) -> Vec<Identification> {
         });
     }
 
-    if len == 32 && is_all_hex(trimmed) {
-        append_if_missing(&mut results, HashType::Md5, 0.9, len, &charset);
-    }
-
-    if len == 40 && is_all_hex(trimmed) {
-        append_if_missing(&mut results, HashType::Sha1, 0.9, len, &charset);
-    }
-
-    if len == 64 && is_all_hex(trimmed) {
-        append_if_missing(&mut results, HashType::Sha256, 0.9, len, &charset);
-    }
+    // Md5/Sha1/Sha256 are already pushed by the length-matching block above.
 
     if len == 32 && is_all_uppercase_hex(trimmed) {
         results.push(Identification {
@@ -152,23 +142,6 @@ pub fn identify(input: &str) -> Vec<Identification> {
     }
 
     results
-}
-
-fn append_if_missing(
-    results: &mut Vec<Identification>,
-    hash_type: HashType,
-    confidence: f64,
-    length: usize,
-    charset: &str,
-) {
-    if !results.iter().any(|r| r.hash_type == hash_type) {
-        results.push(Identification {
-            hash_type,
-            confidence,
-            length,
-            charset: charset.to_string(),
-        });
-    }
 }
 
 fn detect_charset(s: &str) -> String {

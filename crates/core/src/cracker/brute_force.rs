@@ -28,8 +28,23 @@ pub fn brute_force_crack(config: &BruteForceConfig) -> BruteForceResult {
         "lower" => CHARSET_LOWER,
         "lowerdigit" => CHARSET_LOWER_DIGIT,
         "alnum" => CHARSET_ALNUM,
-        _ => CHARSET_LOWER_DIGIT,
+        _ => {
+            return BruteForceResult {
+                cracked: false,
+                plaintext: None,
+                attempts: 0,
+                method: format!("brute-force (unknown charset {:?})", config.charset),
+            }
+        }
     };
+    if charset_bytes.is_empty() {
+        return BruteForceResult {
+            cracked: false,
+            plaintext: None,
+            attempts: 0,
+            method: "brute-force (empty charset)".to_string(),
+        };
+    }
 
     let trimmed = config.hash.trim().to_lowercase();
     let ident = identify(&config.hash);
@@ -170,5 +185,35 @@ mod tests {
             result.method,
             "brute-force (skipped - hash too long or unsupported)"
         );
+    }
+
+    #[test]
+    fn test_brute_force_unknown_charset_is_reported_not_silently_swapped() {
+        // Previously an unknown charset silently fell back to lower+digit,
+        // so a typo'd charset produced a misleading "(exhausted)" result.
+        let config = BruteForceConfig {
+            hash: hash_md5("test"),
+            max_length: 4,
+            charset: "lowerdigit ".trim().to_owned() + "x", // "lowerdigitx" — unknown
+        };
+        let result = brute_force_crack(&config);
+        assert!(!result.cracked);
+        assert_eq!(result.attempts, 0);
+        assert_eq!(
+            result.method,
+            "brute-force (unknown charset \"lowerdigitx\")"
+        );
+    }
+
+    #[test]
+    fn test_brute_force_max_length_zero_attempts_nothing() {
+        let config = BruteForceConfig {
+            hash: hash_md5("test"),
+            max_length: 0,
+            charset: "lower".to_string(),
+        };
+        let result = brute_force_crack(&config);
+        assert!(!result.cracked);
+        assert_eq!(result.attempts, 0);
     }
 }
