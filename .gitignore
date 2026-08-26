@@ -22,3 +22,6 @@ wordlists/*.gz
 # OS
 .DS_Store
 Thumbs.db
+
+
+STRUCTURE.md
