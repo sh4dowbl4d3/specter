@@ -39,6 +39,38 @@ fn identify_unknown_returns_unknown() {
 }
 
 #[test]
+fn identify_no_duplicate_entries_for_same_type() {
+    // Regression: Md5/Sha1/Sha256 used to be pushed by two separate code paths.
+    for hash in [
+        "5f4dcc3b5aa765d61d8327deb882cf99",         // MD5
+        "da39a3ee5e6b4b0d3255bfef95601890afd80709", // SHA-1
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // SHA-256
+        "209C6174DA490CAEB422F3FA5A7AE71D",         // uppercase 32-hex
+    ] {
+        let results = identify(hash);
+        let mut keys: Vec<String> = results
+            .iter()
+            .map(|r| format!("{:?}", r.hash_type))
+            .collect();
+        let count = keys.len();
+        keys.sort();
+        keys.dedup();
+        assert_eq!(
+            keys.len(),
+            count,
+            "duplicates in identify({hash}): {results:?}"
+        );
+    }
+}
+
+#[test]
+fn identify_empty_input_is_unknown() {
+    let results = identify("");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].hash_type, HashType::Unknown);
+}
+
+#[test]
 fn identify_lowercase_ntlm_is_md5_and_also_ntlm_via_cracker() {
     let results = identify("209c6174da490caeb422f3fa5a7ae634");
     assert!(results.iter().any(|r| r.hash_type == HashType::Md5));
