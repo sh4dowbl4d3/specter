@@ -213,6 +213,63 @@ pub fn vigenere_encrypt(input: &str, key: &str) -> String {
         .collect()
 }
 
+pub fn url_encode(input: &str) -> String {
+    let mut out = String::with_capacity(input.len() * 3);
+    for b in input.as_bytes() {
+        if b.is_ascii_alphanumeric() || *b == b'-' || *b == b'_' || *b == b'.' || *b == b'~' {
+            out.push(*b as char);
+        } else {
+            out.push_str(&format!("%{:02X}", b));
+        }
+    }
+    out
+}
+
+pub fn url_decode(input: &str) -> Result<String, CipherError> {
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'%' => {
+                if i + 2 >= bytes.len() {
+                    return Err(CipherError::Decode("URL: incomplete percent-encoding".to_string()));
+                }
+                let h1 = bytes[i + 1];
+                let h2 = bytes[i + 2];
+                if !h1.is_ascii_hexdigit() || !h2.is_ascii_hexdigit() {
+                    return Err(CipherError::Decode(
+                        "URL: invalid hex digits in percent-encoding".to_string(),
+                    ));
+                }
+                let val1 = match h1 {
+                    b'0'..=b'9' => h1 - b'0',
+                    b'a'..=b'f' => h1 - b'a' + 10,
+                    b'A'..=b'F' => h1 - b'A' + 10,
+                    _ => unreachable!(),
+                };
+                let val2 = match h2 {
+                    b'0'..=b'9' => h2 - b'0',
+                    b'a'..=b'f' => h2 - b'a' + 10,
+                    b'A'..=b'F' => h2 - b'A' + 10,
+                    _ => unreachable!(),
+                };
+                out.push((val1 << 4) | val2);
+                i += 3;
+            }
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).map_err(|e| CipherError::Decode(format!("UTF-8: {}", e)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -302,5 +359,23 @@ mod tests {
     #[test]
     fn test_hex_decode_rejects_non_hex() {
         assert!(hex_decode("zzzz").is_err());
+    }
+
+    #[test]
+    fn test_url_roundtrip() {
+        let text = "Hello World! @#$&*()+=:;,/?";
+        let encoded = url_encode(text);
+        assert_eq!(url_decode(&encoded).unwrap(), text);
+    }
+
+    #[test]
+    fn test_url_decode_plus_as_space() {
+        assert_eq!(url_decode("hello+world").unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_url_decode_invalid_percent() {
+        assert!(url_decode("%2").is_err());
+        assert!(url_decode("%2G").is_err());
     }
 }
