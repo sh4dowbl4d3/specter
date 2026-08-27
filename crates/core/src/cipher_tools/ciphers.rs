@@ -270,6 +270,31 @@ pub fn url_decode(input: &str) -> Result<String, CipherError> {
     String::from_utf8(out).map_err(|e| CipherError::Decode(format!("UTF-8: {}", e)))
 }
 
+pub fn ascii_to_decimal(input: &str) -> String {
+    input
+        .as_bytes()
+        .iter()
+        .map(|b| b.to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+pub fn decimal_to_ascii(input: &str) -> Result<String, CipherError> {
+    let tokens = input
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+
+    let mut bytes = Vec::new();
+    for token in tokens {
+        let val = token.parse::<u8>().map_err(|_| {
+            CipherError::Decode(format!("Decimal: '{token}' is not a valid byte (0-255)"))
+        })?;
+        bytes.push(val);
+    }
+    String::from_utf8(bytes).map_err(|e| CipherError::Decode(format!("UTF-8: {}", e)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -377,5 +402,24 @@ mod tests {
     fn test_url_decode_invalid_percent() {
         assert!(url_decode("%2").is_err());
         assert!(url_decode("%2G").is_err());
+    }
+
+    #[test]
+    fn test_ascii_decimal_roundtrip() {
+        let text = "Hello, World! 123";
+        let encoded = ascii_to_decimal(text);
+        assert_eq!(decimal_to_ascii(&encoded).unwrap(), text);
+    }
+
+    #[test]
+    fn test_decimal_to_ascii_delimiters() {
+        assert_eq!(decimal_to_ascii("72, 101, 108, 108, 111").unwrap(), "Hello");
+        assert_eq!(decimal_to_ascii("72 101\n108\t108 111").unwrap(), "Hello");
+    }
+
+    #[test]
+    fn test_decimal_to_ascii_invalid() {
+        assert!(decimal_to_ascii("72 999").is_err());
+        assert!(decimal_to_ascii("72 abc").is_err());
     }
 }
