@@ -401,6 +401,23 @@ pub fn morse_decode(input: &str) -> Result<String, CipherError> {
     Ok(decoded_words.join(" "))
 }
 
+pub fn reverse_text(input: &str) -> String {
+    input.chars().rev().collect()
+}
+
+pub fn reverse_words(input: &str) -> String {
+    input
+        .lines()
+        .map(|line| {
+            line.split_whitespace()
+                .rev()
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -540,5 +557,16 @@ mod tests {
     #[test]
     fn test_morse_decode_invalid() {
         assert!(morse_decode("........").is_err());
+    }
+
+    #[test]
+    fn test_reverse_text() {
+        assert_eq!(reverse_text("Devastator"), "rotatsaveD");
+        assert_eq!(reverse_text(&reverse_text("hello")), "hello");
+    }
+
+    #[test]
+    fn test_reverse_words() {
+        assert_eq!(reverse_words("the quick brown fox"), "fox brown quick the");
     }
 }
