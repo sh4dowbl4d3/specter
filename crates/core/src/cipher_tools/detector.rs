@@ -232,9 +232,7 @@ fn is_likely_url(s: &str) -> bool {
     s.contains('%')
         && s.len() >= 3
         && s.as_bytes().windows(3).any(|w| {
-            w[0] == b'%'
-                && (w[1] as char).is_ascii_hexdigit()
-                && (w[2] as char).is_ascii_hexdigit()
+            w[0] == b'%' && (w[1] as char).is_ascii_hexdigit() && (w[2] as char).is_ascii_hexdigit()
         })
 }
 

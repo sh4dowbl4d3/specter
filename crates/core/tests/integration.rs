@@ -346,6 +346,118 @@ fn identify_sha256_then_crack_all_charsets() {
     assert_eq!(cracked.unwrap().plaintext.as_deref(), Some("admin"));
 }
 
+// ── Extended cipher & encoding integration tests ──────────────
+
+#[test]
+fn url_encoding_roundtrips_preserve_special_characters() {
+    let cases = [
+        "https://example.com/test?query=hello world&tag=#1!",
+        "admin:p@ssw0rd!%&*()_+~",
+        "Unicode: 🚀🦀🛡️",
+    ];
+    for input in cases {
+        let encoded = url_encode(input);
+        let decoded = url_decode(&encoded).unwrap();
+        assert_eq!(decoded, input);
+    }
+}
+
+#[test]
+fn ascii_decimal_roundtrip_integration() {
+    let text = "Cybersecurity 2026";
+    let encoded = ascii_to_decimal(text);
+    let decoded = decimal_to_ascii(&encoded).unwrap();
+    assert_eq!(decoded, text);
+}
+
+#[test]
+fn morse_code_roundtrip_integration() {
+    let message = "ATTACK AT DAWN 1944";
+    let encoded = morse_encode(message);
+    let decoded = morse_decode(&encoded).unwrap();
+    assert_eq!(decoded, message);
+}
+
+#[test]
+fn rail_fence_multiple_rails_roundtrip() {
+    let plain = "DEFEND THE EAST WALL OF THE CASTLE";
+    for rails in 2..=8 {
+        let enc = rail_fence_encrypt(plain, rails).unwrap();
+        let dec = rail_fence_decrypt(&enc, rails).unwrap();
+        assert_eq!(dec, plain, "Rail fence failed for {rails} rails");
+    }
+}
+
+#[test]
+fn affine_multiple_keys_roundtrip() {
+    let plain = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG 123!";
+    let valid_a_values = [1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25];
+    for (i, &a) in valid_a_values.iter().enumerate() {
+        let b = (i as u8 * 3 + 7) % 26;
+        let enc = affine_encrypt(plain, a, b).unwrap();
+        let dec = affine_decrypt(&enc, a, b).unwrap();
+        assert_eq!(dec, plain, "Affine failed for a={a}, b={b}");
+    }
+}
+
+#[test]
+fn bacon_cipher_roundtrip_integration() {
+    let message = "CRYPTOGRAPHY";
+    let encoded = bacon_encode(message);
+    let decoded = bacon_decode(&encoded).unwrap();
+    assert_eq!(decoded, message);
+}
+
+#[test]
+fn xor_multi_byte_roundtrip_integration() {
+    let plain = "Confidential browser-based crypto suite";
+    let key = "DevastatorSecretKey";
+    let hex_cipher = xor_text_to_hex(plain, key).unwrap();
+    let decrypted = xor_hex_to_text(&hex_cipher, key).unwrap();
+    assert_eq!(decrypted, plain);
+}
+
+#[test]
+fn chained_pipeline_transformation_integration() {
+    let initial = "Devastator WASM Suite";
+    let pipeline = vec![
+        TransformStep::UrlEncode,
+        TransformStep::Base64Encode,
+        TransformStep::Rot13,
+        TransformStep::HexEncode,
+    ];
+    let encoded = apply_pipeline(initial, &pipeline).unwrap();
+
+    let inverse_pipeline = vec![
+        TransformStep::HexDecode,
+        TransformStep::Rot13,
+        TransformStep::Base64Decode,
+        TransformStep::UrlDecode,
+    ];
+    let recovered = apply_pipeline(&encoded, &inverse_pipeline).unwrap();
+    assert_eq!(recovered, initial);
+}
+
+#[test]
+fn detect_cipher_extended_heuristics_and_ranking() {
+    let morse_input = "... --- ...";
+    let morse_res = detect_cipher(morse_input);
+    assert!(!morse_res.is_empty());
+    assert_eq!(morse_res[0].cipher_type, CipherType::Morse);
+    assert_eq!(morse_res[0].decoded.as_deref(), Some("SOS"));
+    assert!(!morse_res[0].explanation.is_empty());
+
+    let decimal_input = "83 79 83";
+    let dec_res = detect_cipher(decimal_input);
+    assert!(dec_res
+        .iter()
+        .any(|r| r.cipher_type == CipherType::AsciiDecimal));
+
+    let bacon_input = "AABBB AABAA ABABB ABABB ABBBA";
+    let bacon_res = detect_cipher(bacon_input);
+    assert!(bacon_res.iter().any(|r| r.cipher_type == CipherType::Bacon));
+}
+
 // ── Ensure no side effects (pure functions) ───────────────────
 
 #[test]

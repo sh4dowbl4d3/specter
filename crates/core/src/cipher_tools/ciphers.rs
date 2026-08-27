@@ -233,7 +233,9 @@ pub fn url_decode(input: &str) -> Result<String, CipherError> {
         match bytes[i] {
             b'%' => {
                 if i + 2 >= bytes.len() {
-                    return Err(CipherError::Decode("URL: incomplete percent-encoding".to_string()));
+                    return Err(CipherError::Decode(
+                        "URL: incomplete percent-encoding".to_string(),
+                    ));
                 }
                 let h1 = bytes[i + 1];
                 let h2 = bytes[i + 2];
@@ -408,12 +410,7 @@ pub fn reverse_text(input: &str) -> String {
 pub fn reverse_words(input: &str) -> String {
     input
         .lines()
-        .map(|line| {
-            line.split_whitespace()
-                .rev()
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
+        .map(|line| line.split_whitespace().rev().collect::<Vec<_>>().join(" "))
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -549,9 +546,7 @@ pub fn affine_decrypt(input: &str, a: u8, b: u8) -> Result<String, CipherError> 
     let a = a % 26;
     let b = b % 26;
     let inv_a = mod_inverse_26(a).ok_or_else(|| {
-        CipherError::InvalidKey(format!(
-            "Affine 'a' parameter ({a}) must be coprime to 26"
-        ))
+        CipherError::InvalidKey(format!("Affine 'a' parameter ({a}) must be coprime to 26"))
     })? as u16;
 
     let res = input
@@ -665,7 +660,9 @@ pub fn bacon_decode(input: &str) -> Result<String, CipherError> {
 
 pub fn xor_bytes(input: &[u8], key: &[u8]) -> Result<Vec<u8>, CipherError> {
     if key.is_empty() {
-        return Err(CipherError::InvalidKey("XOR key cannot be empty".to_string()));
+        return Err(CipherError::InvalidKey(
+            "XOR key cannot be empty".to_string(),
+        ));
     }
     Ok(input
         .iter()
@@ -676,7 +673,9 @@ pub fn xor_bytes(input: &[u8], key: &[u8]) -> Result<Vec<u8>, CipherError> {
 
 pub fn xor_text_to_hex(input: &str, key: &str) -> Result<String, CipherError> {
     if key.is_empty() {
-        return Err(CipherError::InvalidKey("XOR key cannot be empty".to_string()));
+        return Err(CipherError::InvalidKey(
+            "XOR key cannot be empty".to_string(),
+        ));
     }
     let res = xor_bytes(input.as_bytes(), key.as_bytes())?;
     Ok(hex::encode(res))
@@ -684,7 +683,9 @@ pub fn xor_text_to_hex(input: &str, key: &str) -> Result<String, CipherError> {
 
 pub fn xor_hex_to_text(hex_input: &str, key: &str) -> Result<String, CipherError> {
     if key.is_empty() {
-        return Err(CipherError::InvalidKey("XOR key cannot be empty".to_string()));
+        return Err(CipherError::InvalidKey(
+            "XOR key cannot be empty".to_string(),
+        ));
     }
     let cleaned: String = hex_input.chars().filter(|c| !c.is_whitespace()).collect();
     let bytes = hex::decode(&cleaned)
@@ -696,8 +697,8 @@ pub fn xor_hex_to_text(hex_input: &str, key: &str) -> Result<String, CipherError
 pub fn xor_hex_with_hex(hex_input: &str, hex_key: &str) -> Result<String, CipherError> {
     let clean_in: String = hex_input.chars().filter(|c| !c.is_whitespace()).collect();
     let clean_key: String = hex_key.chars().filter(|c| !c.is_whitespace()).collect();
-    let in_bytes = hex::decode(&clean_in)
-        .map_err(|e| CipherError::Decode(format!("Hex input error: {e}")))?;
+    let in_bytes =
+        hex::decode(&clean_in).map_err(|e| CipherError::Decode(format!("Hex input error: {e}")))?;
     let key_bytes = hex::decode(&clean_key)
         .map_err(|e| CipherError::InvalidKey(format!("Hex key error: {e}")))?;
     let res = xor_bytes(&in_bytes, &key_bytes)?;
