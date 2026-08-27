@@ -512,6 +512,64 @@ pub fn rail_fence_decrypt(input: &str, rails: usize) -> Result<String, CipherErr
     Ok(result)
 }
 
+fn mod_inverse_26(a: u8) -> Option<u8> {
+    let a = (a % 26) as u16;
+    if a == 0 {
+        return None;
+    }
+    (1..26u16).find(|&x| (a * x) % 26 == 1).map(|x| x as u8)
+}
+
+pub fn affine_encrypt(input: &str, a: u8, b: u8) -> Result<String, CipherError> {
+    let a = a % 26;
+    let b = b % 26;
+    if mod_inverse_26(a).is_none() {
+        return Err(CipherError::InvalidKey(format!(
+            "Affine 'a' parameter ({a}) must be coprime to 26"
+        )));
+    }
+
+    let res = input
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphabetic() {
+                let first = if c.is_ascii_lowercase() { b'a' } else { b'A' };
+                let x = (c as u16) - (first as u16);
+                let enc = ((a as u16) * x + (b as u16)) % 26 + (first as u16);
+                (enc as u8) as char
+            } else {
+                c
+            }
+        })
+        .collect();
+    Ok(res)
+}
+
+pub fn affine_decrypt(input: &str, a: u8, b: u8) -> Result<String, CipherError> {
+    let a = a % 26;
+    let b = b % 26;
+    let inv_a = mod_inverse_26(a).ok_or_else(|| {
+        CipherError::InvalidKey(format!(
+            "Affine 'a' parameter ({a}) must be coprime to 26"
+        ))
+    })? as u16;
+
+    let res = input
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphabetic() {
+                let first = if c.is_ascii_lowercase() { b'a' } else { b'A' };
+                let y = (c as u16) - (first as u16);
+                let dec = (inv_a * (y + 26 - (b as u16))) % 26 + (first as u16);
+                (dec as u8) as char
+            } else {
+                c
+            }
+        })
+        .collect();
+    Ok(res)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -681,5 +739,23 @@ mod tests {
     fn test_rail_fence_invalid_rails() {
         assert!(rail_fence_encrypt("hello", 1).is_err());
         assert!(rail_fence_decrypt("hello", 0).is_err());
+    }
+
+    #[test]
+    fn test_affine_roundtrip() {
+        let text = "AFFINE CIPHER! Example text 123";
+        let a = 5;
+        let b = 8;
+        let encrypted = affine_encrypt(text, a, b).unwrap();
+        assert_eq!(encrypted, "IHHWVC SWFRCP! Ctiqflc zctz 123");
+        let decrypted = affine_decrypt(&encrypted, a, b).unwrap();
+        assert_eq!(decrypted, text);
+    }
+
+    #[test]
+    fn test_affine_invalid_a() {
+        assert!(affine_encrypt("hello", 2, 3).is_err());
+        assert!(affine_encrypt("hello", 13, 3).is_err());
+        assert!(affine_decrypt("hello", 4, 3).is_err());
     }
 }
