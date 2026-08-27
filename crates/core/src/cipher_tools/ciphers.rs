@@ -570,6 +570,99 @@ pub fn affine_decrypt(input: &str, a: u8, b: u8) -> Result<String, CipherError> 
     Ok(res)
 }
 
+pub fn bacon_encode(input: &str) -> String {
+    let mut words_out = Vec::new();
+    for word in input.split_whitespace() {
+        let mut letters_out = Vec::new();
+        for c in word.chars() {
+            if c.is_ascii_alphabetic() {
+                let idx = c.to_ascii_uppercase() as u8 - b'A';
+                if idx < 26 {
+                    let mut code = String::with_capacity(5);
+                    for shift in (0..5).rev() {
+                        if ((idx >> shift) & 1) == 1 {
+                            code.push('B');
+                        } else {
+                            code.push('A');
+                        }
+                    }
+                    letters_out.push(code);
+                }
+            }
+        }
+        if !letters_out.is_empty() {
+            words_out.push(letters_out.join(" "));
+        }
+    }
+    words_out.join(" / ")
+}
+
+pub fn bacon_decode(input: &str) -> Result<String, CipherError> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Ok(String::new());
+    }
+
+    let words = trimmed.split('/');
+    let mut decoded_words = Vec::new();
+
+    for word in words {
+        let tokens: Vec<String> = word
+            .split_whitespace()
+            .flat_map(|token| {
+                let cleaned: String = token
+                    .chars()
+                    .filter(|c| c.is_ascii_alphabetic() || *c == '0' || *c == '1')
+                    .collect();
+                if cleaned.len() > 5 && cleaned.len().is_multiple_of(5) {
+                    cleaned
+                        .as_bytes()
+                        .chunks(5)
+                        .map(|chunk| String::from_utf8_lossy(chunk).into_owned())
+                        .collect::<Vec<_>>()
+                } else {
+                    vec![cleaned]
+                }
+            })
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let mut word_str = String::new();
+        for token in tokens {
+            if token.len() != 5 {
+                return Err(CipherError::Decode(format!(
+                    "Bacon: block '{token}' must be exactly 5 characters"
+                )));
+            }
+            let mut val = 0u8;
+            for c in token.chars() {
+                val <<= 1;
+                match c.to_ascii_uppercase() {
+                    'A' | '0' => {}
+                    'B' | '1' => val |= 1,
+                    _ => {
+                        return Err(CipherError::Decode(format!(
+                            "Bacon: invalid character '{c}' in block '{token}'"
+                        )))
+                    }
+                }
+            }
+            if val < 26 {
+                word_str.push((b'A' + val) as char);
+            } else {
+                return Err(CipherError::Decode(format!(
+                    "Bacon: value {val} in block '{token}' out of range (0-25)"
+                )));
+            }
+        }
+        if !word_str.is_empty() {
+            decoded_words.push(word_str);
+        }
+    }
+
+    Ok(decoded_words.join(" "))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -757,5 +850,24 @@ mod tests {
         assert!(affine_encrypt("hello", 2, 3).is_err());
         assert!(affine_encrypt("hello", 13, 3).is_err());
         assert!(affine_decrypt("hello", 4, 3).is_err());
+    }
+
+    #[test]
+    fn test_bacon_roundtrip() {
+        let text = "HELLO WORLD";
+        let encoded = bacon_encode(text);
+        assert_eq!(
+            encoded,
+            "AABBB AABAA ABABB ABABB ABBBA / BABBA ABBBA BAAAB ABABB AAABB"
+        );
+        let decoded = bacon_decode(&encoded).unwrap();
+        assert_eq!(decoded, text);
+    }
+
+    #[test]
+    fn test_bacon_decode_invalid() {
+        assert!(bacon_decode("AAAA").is_err()); // 4 chars
+        assert!(bacon_decode("AAAAX").is_err()); // 'X' not A/B
+        assert!(bacon_decode("BBBBB").is_err()); // 31 out of range 0-25
     }
 }
