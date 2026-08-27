@@ -1,7 +1,7 @@
 use crate::cipher_tools::error::CipherError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CipherType {
     Caesar,
     Rot13,
@@ -10,6 +10,14 @@ pub enum CipherType {
     Hex,
     Binary,
     Vigenere,
+    Url,
+    AsciiDecimal,
+    Morse,
+    Reverse,
+    RailFence,
+    Affine,
+    Bacon,
+    Xor,
     Unknown,
 }
 
@@ -23,6 +31,14 @@ impl CipherType {
             CipherType::Hex => "Hex",
             CipherType::Binary => "Binary",
             CipherType::Vigenere => "Vigenère",
+            CipherType::Url => "URL Encoding",
+            CipherType::AsciiDecimal => "ASCII / Decimal",
+            CipherType::Morse => "Morse Code",
+            CipherType::Reverse => "Reverse Text",
+            CipherType::RailFence => "Rail Fence",
+            CipherType::Affine => "Affine",
+            CipherType::Bacon => "Bacon's Cipher",
+            CipherType::Xor => "XOR",
             CipherType::Unknown => "Unknown",
         }
     }
