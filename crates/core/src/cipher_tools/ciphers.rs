@@ -418,6 +418,100 @@ pub fn reverse_words(input: &str) -> String {
         .join("\n")
 }
 
+pub fn rail_fence_encrypt(input: &str, rails: usize) -> Result<String, CipherError> {
+    if rails < 2 {
+        return Err(CipherError::InvalidKey(
+            "Rail fence cipher requires at least 2 rails".to_string(),
+        ));
+    }
+    let chars: Vec<char> = input.chars().collect();
+    if chars.len() <= rails || chars.is_empty() {
+        return Ok(input.to_string());
+    }
+
+    let mut fence: Vec<Vec<char>> = vec![Vec::new(); rails];
+    let mut rail = 0;
+    let mut going_down = true;
+
+    for &c in &chars {
+        fence[rail].push(c);
+        if rail == 0 {
+            going_down = true;
+        } else if rail == rails - 1 {
+            going_down = false;
+        }
+        if going_down {
+            rail += 1;
+        } else {
+            rail -= 1;
+        }
+    }
+
+    let mut result = String::with_capacity(chars.len());
+    for row in fence {
+        for c in row {
+            result.push(c);
+        }
+    }
+    Ok(result)
+}
+
+pub fn rail_fence_decrypt(input: &str, rails: usize) -> Result<String, CipherError> {
+    if rails < 2 {
+        return Err(CipherError::InvalidKey(
+            "Rail fence cipher requires at least 2 rails".to_string(),
+        ));
+    }
+    let chars: Vec<char> = input.chars().collect();
+    let n = chars.len();
+    if n <= rails || n == 0 {
+        return Ok(input.to_string());
+    }
+
+    // Determine row pattern for each position
+    let mut rail_for_pos = Vec::with_capacity(n);
+    let mut rail = 0;
+    let mut going_down = true;
+    for _ in 0..n {
+        rail_for_pos.push(rail);
+        if rail == 0 {
+            going_down = true;
+        } else if rail == rails - 1 {
+            going_down = false;
+        }
+        if going_down {
+            rail += 1;
+        } else {
+            rail -= 1;
+        }
+    }
+
+    // Count characters per rail
+    let mut rail_counts = vec![0; rails];
+    for &r in &rail_for_pos {
+        rail_counts[r] += 1;
+    }
+
+    // Populate each rail with its slice of ciphertext characters
+    let mut rail_chars: Vec<Vec<char>> = Vec::with_capacity(rails);
+    let mut char_idx = 0;
+    for count in rail_counts {
+        rail_chars.push(chars[char_idx..char_idx + count].to_vec());
+        char_idx += count;
+    }
+
+    // Read back in zigzag order
+    let mut rail_ptr = vec![0; rails];
+    let mut result = String::with_capacity(n);
+    for r in rail_for_pos {
+        let c = rail_chars[r][rail_ptr[r]];
+        rail_ptr[r] += 1;
+        result.push(c);
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -568,5 +662,24 @@ mod tests {
     #[test]
     fn test_reverse_words() {
         assert_eq!(reverse_words("the quick brown fox"), "fox brown quick the");
+    }
+
+    #[test]
+    fn test_rail_fence_roundtrip() {
+        let text = "WE ARE DISCOVERED FLEE AT ONCE";
+        let encrypted = rail_fence_encrypt(text, 3).unwrap();
+        assert_eq!(encrypted, "WRIVDETCEAEDSOEE LEA NE  CRF O");
+        let decrypted = rail_fence_decrypt(&encrypted, 3).unwrap();
+        assert_eq!(decrypted, text);
+
+        let text2 = "hello world";
+        let enc2 = rail_fence_encrypt(text2, 4).unwrap();
+        assert_eq!(rail_fence_decrypt(&enc2, 4).unwrap(), text2);
+    }
+
+    #[test]
+    fn test_rail_fence_invalid_rails() {
+        assert!(rail_fence_encrypt("hello", 1).is_err());
+        assert!(rail_fence_decrypt("hello", 0).is_err());
     }
 }
