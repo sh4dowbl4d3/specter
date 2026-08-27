@@ -295,6 +295,112 @@ pub fn decimal_to_ascii(input: &str) -> Result<String, CipherError> {
     String::from_utf8(bytes).map_err(|e| CipherError::Decode(format!("UTF-8: {}", e)))
 }
 
+const MORSE_TABLE: &[(char, &str)] = &[
+    ('A', ".-"),
+    ('B', "-..."),
+    ('C', "-.-."),
+    ('D', "-.."),
+    ('E', "."),
+    ('F', "..-."),
+    ('G', "--."),
+    ('H', "...."),
+    ('I', ".."),
+    ('J', ".---"),
+    ('K', "-.-"),
+    ('L', ".-.."),
+    ('M', "--"),
+    ('N', "-."),
+    ('O', "---"),
+    ('P', ".--."),
+    ('Q', "--.-"),
+    ('R', ".-."),
+    ('S', "..."),
+    ('T', "-"),
+    ('U', "..-"),
+    ('V', "...-"),
+    ('W', ".--"),
+    ('X', "-..-"),
+    ('Y', "-.--"),
+    ('Z', "--.."),
+    ('0', "-----"),
+    ('1', ".----"),
+    ('2', "..---"),
+    ('3', "...--"),
+    ('4', "....-"),
+    ('5', "....."),
+    ('6', "-...."),
+    ('7', "--..."),
+    ('8', "---.."),
+    ('9', "----."),
+    ('.', ".-.-.-"),
+    (',', "--..--"),
+    ('?', "..--.."),
+    ('\'', ".----."),
+    ('!', "-.-.--"),
+    ('/', "-..-."),
+    ('(', "-.--."),
+    (')', "-.--.-"),
+    ('&', ".-..."),
+    (':', "---..."),
+    (';', "-.-.-."),
+    ('=', "-...-"),
+    ('+', ".-.-."),
+    ('-', "-....-"),
+    ('_', "..--.-"),
+    ('"', ".-..-."),
+    ('$', "...-..-"),
+    ('@', ".--.-."),
+];
+
+pub fn morse_encode(input: &str) -> String {
+    let mut words_out = Vec::new();
+    for word in input.split_whitespace() {
+        let mut letters_out = Vec::new();
+        for c in word.chars() {
+            let upper = c.to_ascii_uppercase();
+            if let Some((_, code)) = MORSE_TABLE.iter().find(|(ch, _)| *ch == upper) {
+                letters_out.push(*code);
+            }
+        }
+        if !letters_out.is_empty() {
+            words_out.push(letters_out.join(" "));
+        }
+    }
+    words_out.join(" / ")
+}
+
+pub fn morse_decode(input: &str) -> Result<String, CipherError> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Ok(String::new());
+    }
+
+    let words = trimmed.split('/');
+    let mut decoded_words = Vec::new();
+
+    for word in words {
+        let tokens = word.split_whitespace();
+        let mut word_str = String::new();
+        for token in tokens {
+            if token.is_empty() {
+                continue;
+            }
+            if let Some((ch, _)) = MORSE_TABLE.iter().find(|(_, code)| *code == token) {
+                word_str.push(*ch);
+            } else {
+                return Err(CipherError::Decode(format!(
+                    "Morse: unknown sequence '{token}'"
+                )));
+            }
+        }
+        if !word_str.is_empty() {
+            decoded_words.push(word_str);
+        }
+    }
+
+    Ok(decoded_words.join(" "))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -421,5 +527,18 @@ mod tests {
     fn test_decimal_to_ascii_invalid() {
         assert!(decimal_to_ascii("72 999").is_err());
         assert!(decimal_to_ascii("72 abc").is_err());
+    }
+
+    #[test]
+    fn test_morse_roundtrip() {
+        let text = "HELLO WORLD";
+        let encoded = morse_encode(text);
+        assert_eq!(encoded, ".... . .-.. .-.. --- / .-- --- .-. .-.. -..");
+        assert_eq!(morse_decode(&encoded).unwrap(), text);
+    }
+
+    #[test]
+    fn test_morse_decode_invalid() {
+        assert!(morse_decode("........").is_err());
     }
 }
