@@ -663,6 +663,47 @@ pub fn bacon_decode(input: &str) -> Result<String, CipherError> {
     Ok(decoded_words.join(" "))
 }
 
+pub fn xor_bytes(input: &[u8], key: &[u8]) -> Result<Vec<u8>, CipherError> {
+    if key.is_empty() {
+        return Err(CipherError::InvalidKey("XOR key cannot be empty".to_string()));
+    }
+    Ok(input
+        .iter()
+        .enumerate()
+        .map(|(i, &b)| b ^ key[i % key.len()])
+        .collect())
+}
+
+pub fn xor_text_to_hex(input: &str, key: &str) -> Result<String, CipherError> {
+    if key.is_empty() {
+        return Err(CipherError::InvalidKey("XOR key cannot be empty".to_string()));
+    }
+    let res = xor_bytes(input.as_bytes(), key.as_bytes())?;
+    Ok(hex::encode(res))
+}
+
+pub fn xor_hex_to_text(hex_input: &str, key: &str) -> Result<String, CipherError> {
+    if key.is_empty() {
+        return Err(CipherError::InvalidKey("XOR key cannot be empty".to_string()));
+    }
+    let cleaned: String = hex_input.chars().filter(|c| !c.is_whitespace()).collect();
+    let bytes = hex::decode(&cleaned)
+        .map_err(|e| CipherError::Decode(format!("Hex decode error in XOR: {e}")))?;
+    let res = xor_bytes(&bytes, key.as_bytes())?;
+    String::from_utf8(res).map_err(|e| CipherError::Decode(format!("UTF-8: {e}")))
+}
+
+pub fn xor_hex_with_hex(hex_input: &str, hex_key: &str) -> Result<String, CipherError> {
+    let clean_in: String = hex_input.chars().filter(|c| !c.is_whitespace()).collect();
+    let clean_key: String = hex_key.chars().filter(|c| !c.is_whitespace()).collect();
+    let in_bytes = hex::decode(&clean_in)
+        .map_err(|e| CipherError::Decode(format!("Hex input error: {e}")))?;
+    let key_bytes = hex::decode(&clean_key)
+        .map_err(|e| CipherError::InvalidKey(format!("Hex key error: {e}")))?;
+    let res = xor_bytes(&in_bytes, &key_bytes)?;
+    Ok(hex::encode(res))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -869,5 +910,28 @@ mod tests {
         assert!(bacon_decode("AAAA").is_err()); // 4 chars
         assert!(bacon_decode("AAAAX").is_err()); // 'X' not A/B
         assert!(bacon_decode("BBBBB").is_err()); // 31 out of range 0-25
+    }
+
+    #[test]
+    fn test_xor_text_to_hex_and_back() {
+        let text = "Secret Message 123";
+        let key = "key42";
+        let hex_out = xor_text_to_hex(text, key).unwrap();
+        let decrypted = xor_hex_to_text(&hex_out, key).unwrap();
+        assert_eq!(decrypted, text);
+    }
+
+    #[test]
+    fn test_xor_hex_with_hex() {
+        let hex_a = "1c0111001f010100061a024b53535009181c";
+        let hex_b = "686974207468652062756c6c277320657965";
+        let res = xor_hex_with_hex(hex_a, hex_b).unwrap();
+        assert_eq!(res, "746865206b696420646f6e277420706c6179");
+    }
+
+    #[test]
+    fn test_xor_empty_key_errors() {
+        assert!(xor_text_to_hex("hello", "").is_err());
+        assert!(xor_hex_to_text("0102", "").is_err());
     }
 }
