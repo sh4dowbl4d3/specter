@@ -704,6 +704,79 @@ pub fn xor_hex_with_hex(hex_input: &str, hex_key: &str) -> Result<String, Cipher
     Ok(hex::encode(res))
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TransformStep {
+    Base64Encode,
+    Base64Decode,
+    HexEncode,
+    HexDecode,
+    BinaryEncode,
+    BinaryDecode,
+    UrlEncode,
+    UrlDecode,
+    AsciiToDecimal,
+    DecimalToAscii,
+    MorseEncode,
+    MorseDecode,
+    ReverseText,
+    ReverseWords,
+    Rot13,
+    Atbash,
+    CaesarEncrypt(u8),
+    CaesarDecrypt(u8),
+    VigenereEncrypt(String),
+    VigenereDecrypt(String),
+    AffineEncrypt { a: u8, b: u8 },
+    AffineDecrypt { a: u8, b: u8 },
+    RailFenceEncrypt(usize),
+    RailFenceDecrypt(usize),
+    BaconEncode,
+    BaconDecode,
+    XorText(String),
+    XorHex(String),
+}
+
+pub fn apply_transform(input: &str, step: &TransformStep) -> Result<String, CipherError> {
+    match step {
+        TransformStep::Base64Encode => Ok(base64_encode(input)),
+        TransformStep::Base64Decode => base64_decode(input),
+        TransformStep::HexEncode => Ok(hex_encode(input)),
+        TransformStep::HexDecode => hex_decode(input),
+        TransformStep::BinaryEncode => Ok(binary_encode(input)),
+        TransformStep::BinaryDecode => binary_decode(input),
+        TransformStep::UrlEncode => Ok(url_encode(input)),
+        TransformStep::UrlDecode => url_decode(input),
+        TransformStep::AsciiToDecimal => Ok(ascii_to_decimal(input)),
+        TransformStep::DecimalToAscii => decimal_to_ascii(input),
+        TransformStep::MorseEncode => Ok(morse_encode(input)),
+        TransformStep::MorseDecode => morse_decode(input),
+        TransformStep::ReverseText => Ok(reverse_text(input)),
+        TransformStep::ReverseWords => Ok(reverse_words(input)),
+        TransformStep::Rot13 => Ok(rot13(input)),
+        TransformStep::Atbash => Ok(atbash(input)),
+        TransformStep::CaesarEncrypt(shift) => Ok(caesar_encrypt(input, *shift)),
+        TransformStep::CaesarDecrypt(shift) => Ok(caesar_decrypt(input, *shift)),
+        TransformStep::VigenereEncrypt(key) => Ok(vigenere_encrypt(input, key)),
+        TransformStep::VigenereDecrypt(key) => Ok(vigenere_decrypt(input, key)),
+        TransformStep::AffineEncrypt { a, b } => affine_encrypt(input, *a, *b),
+        TransformStep::AffineDecrypt { a, b } => affine_decrypt(input, *a, *b),
+        TransformStep::RailFenceEncrypt(rails) => rail_fence_encrypt(input, *rails),
+        TransformStep::RailFenceDecrypt(rails) => rail_fence_decrypt(input, *rails),
+        TransformStep::BaconEncode => Ok(bacon_encode(input)),
+        TransformStep::BaconDecode => bacon_decode(input),
+        TransformStep::XorText(key) => xor_text_to_hex(input, key),
+        TransformStep::XorHex(key) => xor_hex_to_text(input, key),
+    }
+}
+
+pub fn apply_pipeline(input: &str, steps: &[TransformStep]) -> Result<String, CipherError> {
+    let mut current = input.to_string();
+    for step in steps {
+        current = apply_transform(&current, step)?;
+    }
+    Ok(current)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -933,5 +1006,42 @@ mod tests {
     fn test_xor_empty_key_errors() {
         assert!(xor_text_to_hex("hello", "").is_err());
         assert!(xor_hex_to_text("0102", "").is_err());
+    }
+
+    #[test]
+    fn test_apply_pipeline_chained() {
+        let original = "Pipeline Test 2026!";
+        let pipeline = vec![
+            TransformStep::Base64Encode,
+            TransformStep::HexEncode,
+            TransformStep::HexDecode,
+            TransformStep::Base64Decode,
+        ];
+        let res = apply_pipeline(original, &pipeline).unwrap();
+        assert_eq!(res, original);
+
+        let cipher_pipeline = vec![
+            TransformStep::Rot13,
+            TransformStep::Atbash,
+            TransformStep::ReverseText,
+        ];
+        let enc = apply_pipeline("hello", &cipher_pipeline).unwrap();
+        // Invert in reverse order
+        let invert_pipeline = vec![
+            TransformStep::ReverseText,
+            TransformStep::Atbash,
+            TransformStep::Rot13,
+        ];
+        let dec = apply_pipeline(&enc, &invert_pipeline).unwrap();
+        assert_eq!(dec, "hello");
+    }
+
+    #[test]
+    fn test_apply_pipeline_error_propagation() {
+        let pipeline = vec![
+            TransformStep::HexDecode, // "hello" is not valid hex
+            TransformStep::Rot13,
+        ];
+        assert!(apply_pipeline("hello", &pipeline).is_err());
     }
 }
