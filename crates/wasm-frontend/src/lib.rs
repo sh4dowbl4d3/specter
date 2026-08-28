@@ -20,6 +20,7 @@ thread_local! {
     static WORDLIST: RefCell<Option<String>> = const { RefCell::new(None) };
     static CIPHER_FILE_CONTENT: RefCell<Option<(String, String)>> = const { RefCell::new(None) };
     static FI_FILE: RefCell<Option<File>> = const { RefCell::new(None) };
+    static FILE_HASH_REPORT: RefCell<Option<(String, String)>> = const { RefCell::new(None) };
     static FCI_FILE: RefCell<Option<File>> = const { RefCell::new(None) };
 }
 
@@ -865,6 +866,7 @@ fn setup_file_tools() {
             Some(f) => {
                 show_progress_msg("fi", "Reading file into memory...");
                 let algo = val("fi-algo");
+                let fname = f.name();
                 file_read_binary_handler(
                     f,
                     move |bytes| {
@@ -888,8 +890,12 @@ fn setup_file_tools() {
                             }))
                             .unwrap_or_default()
                         };
+                        FILE_HASH_REPORT
+                            .with(|r| *r.borrow_mut() = Some((fname.clone(), out.clone())));
                         hide_progress("fi");
                         text("fi-output-body", &out);
+                        show("fi-btn-download");
+                        show("fi-btn-reset");
                     },
                     |e| {
                         hide_progress("fi");
@@ -898,6 +904,30 @@ fn setup_file_tools() {
                 );
             }
         }
+    });
+
+    click_handler("fi-btn-download", || {
+        FILE_HASH_REPORT.with(|r| {
+            if let Some((fname, report_json)) = r.borrow().clone() {
+                download_file(&format!("hash-report-{fname}.json"), &report_json);
+                toast("Report downloaded");
+            }
+        });
+    });
+
+    click_handler("fi-btn-reset", || {
+        FI_FILE.with(|f| *f.borrow_mut() = None);
+        FILE_HASH_REPORT.with(|r| *r.borrow_mut() = None);
+        if let Ok(input) = el("fi-file-input").dyn_into::<HtmlInputElement>() {
+            input.set_value("");
+        }
+        text("fi-drop-text", "Drop a file here, or browse");
+        hide("fi-meta");
+        text("fi-meta", "");
+        hide("fi-btn-download");
+        hide("fi-btn-reset");
+        text("fi-output-body", "Upload a file and click Hash file.");
+        toast("Workspace reset");
     });
 
     setup_file_dropzone("fci-dropzone", "fci-file-input", "fci-drop-text", |file| {
