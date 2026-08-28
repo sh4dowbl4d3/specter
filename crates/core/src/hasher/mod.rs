@@ -148,7 +148,8 @@ impl StreamingHasher {
             StreamingHasher::Mysql3 { nr, add, nr2 } => {
                 for &byte in chunk.iter().filter(|&&b| b != b' ' && b != b'\t') {
                     let value = byte as u64;
-                    *nr ^= ((*nr & 63).wrapping_add(*add).wrapping_mul(value)).wrapping_add(*nr << 8);
+                    *nr ^=
+                        ((*nr & 63).wrapping_add(*add).wrapping_mul(value)).wrapping_add(*nr << 8);
                     *nr2 = nr2.wrapping_add((*nr2 << 8) ^ *nr);
                     *add = add.wrapping_add(value);
                 }
@@ -206,7 +207,8 @@ pub fn compute_all_hashes(data: &[u8]) -> Vec<HashDigestEntry> {
 
 pub fn compute_all_hashes_chunked(data: &[u8], chunk_size: usize) -> Vec<HashDigestEntry> {
     let algos = HashAlgorithm::all();
-    let mut hashers: Vec<StreamingHasher> = algos.iter().map(|&a| StreamingHasher::new(a)).collect();
+    let mut hashers: Vec<StreamingHasher> =
+        algos.iter().map(|&a| StreamingHasher::new(a)).collect();
 
     let chunk_size = chunk_size.max(1024);
     for chunk in data.chunks(chunk_size) {
@@ -237,9 +239,8 @@ pub fn compare_hashes(first: &str, second: &str) -> HashComparisonResult {
     let clean_a = first.trim();
     let clean_b = second.trim();
 
-    let matches = !clean_a.is_empty()
-        && !clean_b.is_empty()
-        && clean_a.eq_ignore_ascii_case(clean_b);
+    let matches =
+        !clean_a.is_empty() && !clean_b.is_empty() && clean_a.eq_ignore_ascii_case(clean_b);
 
     let first_types = identify(clean_a);
     let second_types = identify(clean_b);
@@ -300,10 +301,7 @@ mod tests {
             compute_hash(HashAlgorithm::Ntlm, b"admin"),
             "209C6174DA490CAEB422F3FA5A7AE634"
         );
-        assert_eq!(
-            compute_hash(HashAlgorithm::Mysql3, b""),
-            "5030573512345671"
-        );
+        assert_eq!(compute_hash(HashAlgorithm::Mysql3, b""), "5030573512345671");
         assert_eq!(
             compute_hash(HashAlgorithm::Mysql41, b""),
             "*BE1BDEC0AA74B4DCB079943E70528096CCA985F8"

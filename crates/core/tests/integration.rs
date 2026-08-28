@@ -3,6 +3,7 @@ use devastator_core::cipher_tools::detect_cipher;
 use devastator_core::cracker::brute_force::*;
 use devastator_core::cracker::dictionary::*;
 use devastator_core::hash_id::*;
+use devastator_core::hasher::*;
 
 // ── Hash identification tests ─────────────────────────────────
 
@@ -456,6 +457,112 @@ fn detect_cipher_extended_heuristics_and_ranking() {
     let bacon_input = "AABBB AABAA ABABB ABABB ABBBA";
     let bacon_res = detect_cipher(bacon_input);
     assert!(bacon_res.iter().any(|r| r.cipher_type == CipherType::Bacon));
+}
+
+// ── Hash & File toolkit integration tests ────────────────────
+
+#[test]
+fn compute_hash_all_algorithms_against_known_vectors() {
+    let cases = [
+        (HashAlgorithm::Md5, "hello", "5d41402abc4b2a76b9719d911017c592"),
+        (HashAlgorithm::Sha1, "hello", "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"),
+        (
+            HashAlgorithm::Sha224,
+            "hello",
+            "ea09ae9cc6768c50fcee903ed054556e5bfc8347907f12598aa24193",
+        ),
+        (
+            HashAlgorithm::Sha256,
+            "hello",
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        ),
+        (
+            HashAlgorithm::Sha384,
+            "hello",
+            "59e1748777448c69de6b800d7a33bbfb9ff1b463e44354c3553bcdb9c666fa90125a3c79f90397bdf5f6a13de828684f",
+        ),
+        (
+            HashAlgorithm::Sha512,
+            "hello",
+            "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043",
+        ),
+        (HashAlgorithm::Ntlm, "hello", "066ddfd4ef0e9cd7c256fe77191ef43c"),
+    ];
+    for (algo, input, expected) in cases {
+        let digest = compute_hash(algo, input.as_bytes());
+        assert_eq!(digest.to_lowercase(), expected.to_lowercase());
+    }
+}
+
+#[test]
+fn compute_all_hashes_matches_individual_computations() {
+    let data = b"Devastator Cybersecurity Web Toolkit 2026";
+    let multi = compute_all_hashes(data);
+    assert_eq!(multi.len(), HashAlgorithm::all().len());
+
+    for entry in multi {
+        let algo = HashAlgorithm::from_id(&entry.algorithm_id).unwrap();
+        let single = compute_hash(algo, data);
+        assert_eq!(entry.hash, single, "Mismatch for algorithm {:?}", algo);
+    }
+}
+
+#[test]
+fn compare_hashes_cases_and_whitespace_handling() {
+    let h1 = "  2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824 \n";
+    let h2 = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+    let res = compare_hashes(h1, h2);
+    assert!(res.matches);
+    assert!(res
+        .first_types
+        .iter()
+        .any(|t| t.hash_type == HashType::Sha256));
+
+    let h3 = "5d41402abc4b2a76b9719d911017c592"; // md5 (32 chars)
+    let res_diff_len = compare_hashes(h1, h3);
+    assert!(!res_diff_len.matches);
+    assert!(res_diff_len.details.contains("Length mismatch"));
+
+    let h4 = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9825"; // 1 char diff
+    let res_diff_val = compare_hashes(h2, h4);
+    assert!(!res_diff_val.matches);
+    assert!(res_diff_val.details.contains("digest content differs"));
+}
+
+#[test]
+fn large_payload_streaming_chunked_hash_integration() {
+    // Generate a 256 KiB buffer with non-trivial pattern
+    let mut data = Vec::with_capacity(256 * 1024);
+    for i in 0..(256 * 1024) {
+        data.push((i % 251) as u8);
+    }
+
+    for &algo in HashAlgorithm::all() {
+        let expected = compute_hash(algo, &data);
+
+        // Stream with 13 KiB chunks
+        let mut hasher = StreamingHasher::new(algo);
+        for chunk in data.chunks(13 * 1024) {
+            hasher.update(chunk);
+        }
+        let actual = hasher.finalize();
+        assert_eq!(actual, expected, "Streaming chunk mismatch for {:?}", algo);
+    }
+}
+
+#[test]
+fn e2e_hash_generation_identify_and_crack() {
+    let password = "admin";
+    let hash = compute_hash(HashAlgorithm::Md5, password.as_bytes());
+
+    // 1. Identify
+    let identifications = identify(&hash);
+    assert!(identifications.iter().any(|i| i.hash_type == HashType::Md5));
+
+    // 2. Dictionary crack
+    let cracked = crack_from_list(&hash, "root\nadmin\npassword\n");
+    assert!(cracked.is_some());
+    assert_eq!(cracked.unwrap().plaintext.as_deref(), Some("admin"));
 }
 
 // ── Ensure no side effects (pure functions) ───────────────────
