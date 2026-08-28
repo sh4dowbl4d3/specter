@@ -42,6 +42,7 @@ fn start() -> Result<(), JsValue> {
     setup_keyboard_shortcuts();
     setup_hash_identify();
     setup_text_hashing();
+    setup_hash_comparison();
     setup_crack();
     setup_cipher_tools();
     setup_file_tools();
@@ -351,6 +352,7 @@ fn setup_copy_buttons() {
     let pairs = [
         ("id-output", "id-output-body"),
         ("th-output", "th-output-body"),
+        ("cmp-output", "cmp-output-body"),
         ("cr-output", "cr-output-body"),
         ("ci-output", "ci-output-body"),
         ("fi-output", "fi-output-body"),
@@ -444,6 +446,30 @@ fn setup_text_hashing() {
         let res = devastator_core::hasher::compute_all_hashes_text(&input);
         let json = serde_json::to_string_pretty(&res).unwrap_or_default();
         text("th-output-body", &json);
+    });
+}
+
+fn setup_hash_comparison() {
+    click_handler("cmp-btn-compare", || {
+        let a = val("cmp-hash-a");
+        let b = val("cmp-hash-b");
+        if a.trim().is_empty() || b.trim().is_empty() {
+            text("cmp-output-body", "Enter two hashes to compare.");
+            return;
+        }
+        let res = devastator_core::hasher::compare_hashes(&a, &b);
+        let json = serde_json::to_string_pretty(&res).unwrap_or_default();
+        text("cmp-output-body", &json);
+    });
+
+    click_handler("cmp-btn-clear", || {
+        if let Ok(input) = el("cmp-hash-a").dyn_into::<HtmlTextAreaElement>() {
+            input.set_value("");
+        }
+        if let Ok(input) = el("cmp-hash-b").dyn_into::<HtmlTextAreaElement>() {
+            input.set_value("");
+        }
+        text("cmp-output-body", "Enter two hashes and click Compare.");
     });
 }
 
