@@ -221,38 +221,51 @@ fn setup_file_dropzone(
     on_file: impl Fn(File) + Clone + 'static,
 ) {
     let dz = el(dropzone_id).unchecked_into::<HtmlElement>();
-    let dz2 = dz.clone();
+    let dz_enter = dz.clone();
+    let dz_over = dz.clone();
+    let dz_leave = dz.clone();
+    let dz_drop = dz.clone();
+
+    let enter = Closure::wrap(Box::new(move |e: DragEvent| {
+        e.prevent_default();
+        dz_enter.class_list().add_1("dragover").unwrap();
+    }) as Box<dyn FnMut(_)>);
+    dz.add_event_listener_with_callback("dragenter", enter.as_ref().unchecked_ref())
+        .unwrap();
+    enter.forget();
 
     let over = Closure::wrap(Box::new(move |e: DragEvent| {
         e.prevent_default();
-        dz.class_list().add_1("dragover").unwrap();
+        dz_over.class_list().add_1("dragover").unwrap();
     }) as Box<dyn FnMut(_)>);
-    dz2.add_event_listener_with_callback("dragover", over.as_ref().unchecked_ref())
+    dz.add_event_listener_with_callback("dragover", over.as_ref().unchecked_ref())
         .unwrap();
     over.forget();
 
-    let dz3 = dz2.clone();
     let leave = Closure::wrap(Box::new(move |_e: DragEvent| {
-        dz3.class_list().remove_1("dragover").unwrap();
+        dz_leave.class_list().remove_1("dragover").unwrap();
     }) as Box<dyn FnMut(_)>);
-    dz2.add_event_listener_with_callback("dragleave", leave.as_ref().unchecked_ref())
+    dz.add_event_listener_with_callback("dragleave", leave.as_ref().unchecked_ref())
         .unwrap();
     leave.forget();
 
-    let dz4 = dz2.clone();
     let dt = drop_text_id.to_string();
     let on_file_clone = on_file.clone();
     let drop = Closure::wrap(Box::new(move |e: DragEvent| {
         e.prevent_default();
-        dz4.class_list().remove_1("dragover").unwrap();
+        dz_drop.class_list().remove_1("dragover").unwrap();
         if let Some(dt2) = e.data_transfer() {
             if let Some(file) = dt2.files().and_then(|fl| fl.item(0)) {
+                if file.size() > MAX_FILE_BYTES {
+                    toast_error("File exceeds 64 MiB limit");
+                    return;
+                }
                 el(&dt).set_text_content(Some(&file.name()));
                 on_file_clone(file);
             }
         }
     }) as Box<dyn FnMut(_)>);
-    dz2.add_event_listener_with_callback("drop", drop.as_ref().unchecked_ref())
+    dz.add_event_listener_with_callback("drop", drop.as_ref().unchecked_ref())
         .unwrap();
     drop.forget();
 
@@ -264,6 +277,10 @@ fn setup_file_dropzone(
             .files()
             .and_then(|fl| fl.item(0))
         {
+            if file.size() > MAX_FILE_BYTES {
+                toast_error("File exceeds 64 MiB limit");
+                return;
+            }
             el(&dt2).set_text_content(Some(&file.name()));
             on_file(file);
         }
