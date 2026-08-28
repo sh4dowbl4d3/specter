@@ -201,12 +201,27 @@ pub fn compute_hash_text(algo: HashAlgorithm, text: &str) -> TextHashResult {
 }
 
 pub fn compute_all_hashes(data: &[u8]) -> Vec<HashDigestEntry> {
-    HashAlgorithm::all()
+    compute_all_hashes_chunked(data, 64 * 1024)
+}
+
+pub fn compute_all_hashes_chunked(data: &[u8], chunk_size: usize) -> Vec<HashDigestEntry> {
+    let algos = HashAlgorithm::all();
+    let mut hashers: Vec<StreamingHasher> = algos.iter().map(|&a| StreamingHasher::new(a)).collect();
+
+    let chunk_size = chunk_size.max(1024);
+    for chunk in data.chunks(chunk_size) {
+        for hasher in &mut hashers {
+            hasher.update(chunk);
+        }
+    }
+
+    algos
         .iter()
-        .map(|&algo| HashDigestEntry {
+        .zip(hashers)
+        .map(|(&algo, hasher)| HashDigestEntry {
             algorithm: algo.name().to_string(),
             algorithm_id: algo.id_str().to_string(),
-            hash: compute_hash(algo, data),
+            hash: hasher.finalize(),
         })
         .collect()
 }
@@ -319,5 +334,15 @@ mod tests {
         let h3 = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
         let res2 = compare_hashes(h1, h3);
         assert!(!res2.matches);
+    }
+
+    #[test]
+    fn test_compute_all_hashes_chunked_matches_single_pass() {
+        let payload = b"Benchmarking multi-algorithm hash streaming with large payload chunks across algorithms.";
+        let res1 = compute_all_hashes(payload);
+        let res2 = compute_all_hashes_chunked(payload, 1024);
+        let res3 = compute_all_hashes_chunked(payload, 8);
+        assert_eq!(res1, res2);
+        assert_eq!(res1, res3);
     }
 }
