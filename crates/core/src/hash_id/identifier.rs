@@ -59,7 +59,7 @@ impl HashType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Identification {
     pub hash_type: HashType,
     pub confidence: f64,
