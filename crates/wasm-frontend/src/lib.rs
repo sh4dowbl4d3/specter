@@ -422,9 +422,26 @@ fn setup_text_hashing() {
             return;
         }
         let algo_id = val("th-algo");
-        let algo = devastator_core::hasher::HashAlgorithm::from_id(&algo_id)
-            .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
-        let res = devastator_core::hasher::compute_hash_text(algo, &input);
+        if algo_id == "all" {
+            let res = devastator_core::hasher::compute_all_hashes_text(&input);
+            let json = serde_json::to_string_pretty(&res).unwrap_or_default();
+            text("th-output-body", &json);
+        } else {
+            let algo = devastator_core::hasher::HashAlgorithm::from_id(&algo_id)
+                .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
+            let res = devastator_core::hasher::compute_hash_text(algo, &input);
+            let json = serde_json::to_string_pretty(&res).unwrap_or_default();
+            text("th-output-body", &json);
+        }
+    });
+
+    click_handler("th-btn-multi", || {
+        let input = val("th-text-input");
+        if input.is_empty() {
+            text("th-output-body", "Enter text to hash first");
+            return;
+        }
+        let res = devastator_core::hasher::compute_all_hashes_text(&input);
         let json = serde_json::to_string_pretty(&res).unwrap_or_default();
         text("th-output-body", &json);
     });
@@ -777,20 +794,25 @@ fn setup_file_tools() {
                 file_read_binary_handler(
                     f,
                     move |bytes| {
-                        let hash = match algo.as_str() {
-                            "md5" => hash_md5_bytes(&bytes),
-                            "sha1" => hash_sha1_bytes(&bytes),
-                            "sha224" => hash_sha224_bytes(&bytes),
-                            "sha256" => hash_sha256_bytes(&bytes),
-                            "sha384" => hash_sha384_bytes(&bytes),
-                            "sha512" => hash_sha512_bytes(&bytes),
-                            _ => "Unknown algorithm".to_string(),
+                        let out = if algo == "all" {
+                            let digests = devastator_core::hasher::compute_all_hashes(&bytes);
+                            serde_json::to_string_pretty(&serde_json::json!({
+                                "mode": "multi-hash",
+                                "byte_length": bytes.len(),
+                                "digests": digests,
+                            }))
+                            .unwrap_or_default()
+                        } else {
+                            let hash_algo = devastator_core::hasher::HashAlgorithm::from_id(&algo)
+                                .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
+                            let hash = devastator_core::hasher::compute_hash(hash_algo, &bytes);
+                            serde_json::to_string_pretty(&serde_json::json!({
+                                "algorithm": hash_algo.name(),
+                                "algorithm_id": hash_algo.id_str(),
+                                "hash": hash,
+                            }))
+                            .unwrap_or_default()
                         };
-                        let out = serde_json::to_string_pretty(&serde_json::json!({
-                            "algorithm": algo,
-                            "hash": hash,
-                        }))
-                        .unwrap_or_default();
                         hide_progress("fi");
                         text("fi-output-body", &out);
                     },
