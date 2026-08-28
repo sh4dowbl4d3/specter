@@ -41,6 +41,7 @@ fn start() -> Result<(), JsValue> {
     setup_copy_buttons();
     setup_keyboard_shortcuts();
     setup_hash_identify();
+    setup_text_hashing();
     setup_crack();
     setup_cipher_tools();
     setup_file_tools();
@@ -349,6 +350,7 @@ fn setup_ci_type_change() {
 fn setup_copy_buttons() {
     let pairs = [
         ("id-output", "id-output-body"),
+        ("th-output", "th-output-body"),
         ("cr-output", "cr-output-body"),
         ("ci-output", "ci-output-body"),
         ("fi-output", "fi-output-body"),
@@ -409,6 +411,22 @@ fn setup_hash_identify() {
         let json = serde_json::to_string_pretty(&results)
             .unwrap_or_else(|_| "Serialize error".to_string());
         text("id-output-body", &json);
+    });
+}
+
+fn setup_text_hashing() {
+    click_handler("th-btn-hash", || {
+        let input = val("th-text-input");
+        if input.is_empty() {
+            text("th-output-body", "Enter text to hash first");
+            return;
+        }
+        let algo_id = val("th-algo");
+        let algo = devastator_core::hasher::HashAlgorithm::from_id(&algo_id)
+            .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
+        let res = devastator_core::hasher::compute_hash_text(algo, &input);
+        let json = serde_json::to_string_pretty(&res).unwrap_or_default();
+        text("th-output-body", &json);
     });
 }
 
