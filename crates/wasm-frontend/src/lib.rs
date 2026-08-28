@@ -820,10 +820,33 @@ fn setup_cipher_tools() {
     });
 }
 
+fn format_file_size(bytes: f64) -> String {
+    if bytes < 1024.0 {
+        format!("{bytes:.0} B")
+    } else if bytes < 1024.0 * 1024.0 {
+        format!("{:.2} KiB", bytes / 1024.0)
+    } else {
+        format!("{:.2} MiB", bytes / (1024.0 * 1024.0))
+    }
+}
+
 // ── File tools ────────────────────────────────────────────────
 
 fn setup_file_tools() {
     setup_file_dropzone("fi-dropzone", "fi-file-input", "fi-drop-text", |file| {
+        let mime = if file.type_().is_empty() {
+            "application/octet-stream".to_string()
+        } else {
+            file.type_()
+        };
+        let meta = format!(
+            "Name: {} · Size: {} · Type: {}",
+            file.name(),
+            format_file_size(file.size()),
+            mime
+        );
+        text("fi-meta", &meta);
+        show("fi-meta");
         FI_FILE.with(|f| *f.borrow_mut() = Some(file));
     });
 
