@@ -138,9 +138,17 @@ fn copy_text(text: &str) {
 }
 
 fn show_progress(id_prefix: &str) {
+    show_progress_msg(id_prefix, "Processing...");
+}
+
+fn show_progress_msg(id_prefix: &str, msg: &str) {
     show(&format!("{id_prefix}-progress"));
     add_vis_class(&format!("{id_prefix}-progress"), "active");
-    text(&format!("{id_prefix}-progress-text"), "Processing...");
+    text(&format!("{id_prefix}-progress-text"), msg);
+}
+
+fn update_progress_msg(id_prefix: &str, msg: &str) {
+    text(&format!("{id_prefix}-progress-text"), msg);
 }
 
 fn hide_progress(id_prefix: &str) {
@@ -855,11 +863,12 @@ fn setup_file_tools() {
         match file {
             None => text("fi-output-body", "Upload a file first"),
             Some(f) => {
-                show_progress("fi");
+                show_progress_msg("fi", "Reading file into memory...");
                 let algo = val("fi-algo");
                 file_read_binary_handler(
                     f,
                     move |bytes| {
+                        update_progress_msg("fi", "Computing hash digest...");
                         let out = if algo == "all" {
                             let digests = devastator_core::hasher::compute_all_hashes(&bytes);
                             serde_json::to_string_pretty(&serde_json::json!({
