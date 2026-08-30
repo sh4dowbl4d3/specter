@@ -22,6 +22,7 @@ thread_local! {
     static FI_FILE: RefCell<Option<File>> = const { RefCell::new(None) };
     static FILE_HASH_REPORT: RefCell<Option<(String, String)>> = const { RefCell::new(None) };
     static FCI_FILE: RefCell<Option<File>> = const { RefCell::new(None) };
+    static TOAST_TIMER: RefCell<Option<i32>> = const { RefCell::new(None) };
 }
 
 #[wasm_bindgen(start)]
@@ -114,36 +115,57 @@ fn set_output_status(container_id: &str, state: &str, label: &str) {
     }
 }
 
+fn show_toast_internal(msg: &str, is_error: bool, duration_ms: i32) {
+    if let Some(w) = window() {
+        TOAST_TIMER.with(|timer| {
+            if let Some(old_id) = timer.borrow_mut().take() {
+                w.clear_timeout_with_handle(old_id);
+            }
+        });
+
+        let t = el("toast").unchecked_into::<HtmlElement>();
+        t.set_text_content(Some(msg));
+        if is_error {
+            let _ = t.class_list().add_1("error");
+        } else {
+            let _ = t.class_list().remove_1("error");
+        }
+        let _ = t.class_list().add_1("show");
+
+        let cb = Closure::once(move || {
+            let t2 = el("toast").unchecked_into::<HtmlElement>();
+            let _ = t2.class_list().remove_1("show");
+            TOAST_TIMER.with(|timer| *timer.borrow_mut() = None);
+        });
+
+        if let Ok(timer_id) = w.set_timeout_with_callback_and_timeout_and_arguments_0(
+            cb.as_ref().unchecked_ref(),
+            duration_ms,
+        ) {
+            TOAST_TIMER.with(|timer| *timer.borrow_mut() = Some(timer_id));
+        }
+        cb.forget();
+    }
+}
+
 fn toast(msg: &str) {
-    let t = el("toast").unchecked_into::<HtmlElement>();
-    t.set_text_content(Some(msg));
-    t.class_list().remove_1("error").unwrap();
-    t.class_list().add_1("show").unwrap();
-    let t2 = el("toast").unchecked_into::<HtmlElement>();
-    let cb = Closure::once(move || {
-        t2.class_list().remove_1("show").unwrap();
-    });
-    window()
-        .unwrap()
-        .set_timeout_with_callback_and_timeout_and_arguments_0(cb.as_ref().unchecked_ref(), 2200)
-        .unwrap();
-    cb.forget();
+    show_toast_internal(msg, false, 2400);
 }
 
 fn toast_error(msg: &str) {
-    let t = el("toast").unchecked_into::<HtmlElement>();
-    t.set_text_content(Some(msg));
-    t.class_list().add_1("error").unwrap();
-    t.class_list().add_1("show").unwrap();
-    let t2 = el("toast").unchecked_into::<HtmlElement>();
-    let cb = Closure::once(move || {
-        t2.class_list().remove_1("show").unwrap();
-    });
-    window()
-        .unwrap()
-        .set_timeout_with_callback_and_timeout_and_arguments_0(cb.as_ref().unchecked_ref(), 3200)
-        .unwrap();
-    cb.forget();
+    show_toast_internal(msg, true, 3400);
+}
+
+fn dismiss_toast() {
+    if let Some(w) = window() {
+        TOAST_TIMER.with(|timer| {
+            if let Some(old_id) = timer.borrow_mut().take() {
+                w.clear_timeout_with_handle(old_id);
+            }
+        });
+        let t = el("toast").unchecked_into::<HtmlElement>();
+        let _ = t.class_list().remove_1("show");
+    }
 }
 
 fn copy_text(text: &str) {
@@ -572,8 +594,7 @@ fn setup_keyboard_shortcuts() {
 
         // 3. Escape: dismiss toasts
         if key == "Escape" {
-            let t = el("toast").unchecked_into::<HtmlElement>();
-            t.class_list().remove_1("show").unwrap();
+            dismiss_toast();
         }
     }) as Box<dyn FnMut(KeyboardEvent)>);
 
