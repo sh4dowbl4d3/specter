@@ -302,10 +302,46 @@ fn setup_file_dropzone(
 
 // ── Tab switching ─────────────────────────────────────────────
 
+fn switch_tab(tab: &str) {
+    let panels: [&str; 4] = ["tab-identify", "tab-crack", "tab-ciphers", "tab-files"];
+    let target_panel = format!("tab-{tab}");
+    let tabs = match el("tabs").dyn_into::<HtmlElement>() {
+        Ok(t) => t,
+        Err(_) => return,
+    };
+
+    if let Ok(buttons) = tabs.query_selector_all("button") {
+        for i in 0..buttons.length() {
+            if let Some(node) = buttons.item(i) {
+                let btn = node.unchecked_into::<HtmlElement>();
+                let btn_tab = btn.get_attribute("data-tab").unwrap_or_default();
+                if btn_tab == tab {
+                    btn.class_list().add_1("active").unwrap();
+                    btn.set_attribute("aria-selected", "true").unwrap();
+                    btn.set_attribute("tabindex", "0").unwrap();
+                } else {
+                    btn.class_list().remove_1("active").unwrap();
+                    btn.set_attribute("aria-selected", "false").unwrap();
+                    btn.set_attribute("tabindex", "-1").unwrap();
+                }
+            }
+        }
+    }
+
+    for p in &panels {
+        if *p == target_panel {
+            show(p);
+            el(p).set_attribute("aria-hidden", "false").unwrap();
+        } else {
+            hide(p);
+            el(p).set_attribute("aria-hidden", "true").unwrap();
+        }
+    }
+}
+
 fn setup_tabs() {
     let tabs = el("tabs").unchecked_into::<HtmlElement>();
-    let tabs_handle = tabs.clone();
-    let panels: [&str; 4] = ["tab-identify", "tab-crack", "tab-ciphers", "tab-files"];
+    let tabs_click = tabs.clone();
 
     let cb = Closure::wrap(Box::new(move |e: MouseEvent| {
         let target = match e.target() {
@@ -322,40 +358,54 @@ fn setup_tabs() {
         } else {
             return;
         };
-        let tab = match btn.get_attribute("data-tab") {
-            Some(t) => t,
-            None => return,
-        };
-
-        if let Ok(buttons) = tabs.query_selector_all("button") {
-            for i in 0..buttons.length() {
-                if let Some(node) = buttons.item(i) {
-                    let el = node.unchecked_into::<HtmlElement>();
-                    el.class_list().remove_1("active").unwrap();
-                    el.set_attribute("aria-selected", "false").unwrap();
-                }
-            }
-        }
-        btn.clone()
-            .unchecked_into::<HtmlElement>()
-            .class_list()
-            .add_1("active")
-            .unwrap();
-        btn.set_attribute("aria-selected", "true").unwrap();
-
-        for p in &panels {
-            if *p == format!("tab-{tab}") {
-                show(p);
-                el(p).set_attribute("aria-hidden", "false").unwrap();
-            } else {
-                hide(p);
-                el(p).set_attribute("aria-hidden", "true").unwrap();
-            }
+        if let Some(tab) = btn.get_attribute("data-tab") {
+            switch_tab(&tab);
         }
     }) as Box<dyn FnMut(MouseEvent)>);
 
-    tabs_handle.set_onclick(Some(cb.as_ref().unchecked_ref()));
+    tabs_click.set_onclick(Some(cb.as_ref().unchecked_ref()));
     cb.forget();
+
+    // WAI-ARIA Tabs Arrow Key Navigation
+    let tabs_keydown = tabs.clone();
+    let key_cb = Closure::wrap(Box::new(move |e: KeyboardEvent| {
+        let tab_names = ["identify", "crack", "ciphers", "files"];
+        let key = e.key();
+        let target = match e.target().and_then(|t| t.dyn_into::<Element>().ok()) {
+            Some(t) => t,
+            None => return,
+        };
+        let btn = match target.closest("button") {
+            Ok(Some(b)) => b,
+            _ => return,
+        };
+        let current_tab = btn.get_attribute("data-tab").unwrap_or_default();
+        let current_idx = tab_names.iter().position(|&t| t == current_tab).unwrap_or(0);
+
+        let next_idx = match key.as_str() {
+            "ArrowRight" | "ArrowDown" => Some((current_idx + 1) % tab_names.len()),
+            "ArrowLeft" | "ArrowUp" => Some((current_idx + tab_names.len() - 1) % tab_names.len()),
+            "Home" => Some(0),
+            "End" => Some(tab_names.len() - 1),
+            _ => None,
+        };
+
+        if let Some(idx) = next_idx {
+            e.prevent_default();
+            switch_tab(tab_names[idx]);
+            if let Some(btn_to_focus) = tabs_keydown
+                .query_selector(&format!("button[data-tab='{}']", tab_names[idx]))
+                .ok()
+                .flatten()
+            {
+                let _ = btn_to_focus.unchecked_into::<HtmlElement>().focus();
+            }
+        }
+    }) as Box<dyn FnMut(KeyboardEvent)>);
+
+    tabs.add_event_listener_with_callback("keydown", key_cb.as_ref().unchecked_ref())
+        .unwrap();
+    key_cb.forget();
 }
 
 // ── Global events ─────────────────────────────────────────────
@@ -401,29 +451,115 @@ fn setup_copy_buttons() {
 }
 
 fn setup_keyboard_shortcuts() {
-    let id_input = el("id-hash-input").dyn_into::<HtmlTextAreaElement>().ok();
-    if let Some(textarea) = id_input {
-        let cb = Closure::wrap(Box::new(move |e: KeyboardEvent| {
-            if e.key() == "Enter" && (e.ctrl_key() || e.meta_key()) {
-                el("id-btn").unchecked_into::<HtmlButtonElement>().click();
-            }
-        }) as Box<dyn FnMut(_)>);
-        textarea.set_onkeydown(Some(cb.as_ref().unchecked_ref()));
-        cb.forget();
-    }
+    let doc = window().unwrap().document().unwrap();
+    let keydown_cb = Closure::wrap(Box::new(move |e: KeyboardEvent| {
+        let key = e.key();
+        let ctrl_or_meta = e.ctrl_key() || e.meta_key();
+        let alt = e.alt_key();
 
-    let ci_input = el("ci-text").dyn_into::<HtmlTextAreaElement>().ok();
-    if let Some(textarea) = ci_input {
-        let cb = Closure::wrap(Box::new(move |e: KeyboardEvent| {
-            if e.key() == "Enter" && (e.ctrl_key() || e.meta_key()) {
-                el("ci-btn-decode")
-                    .unchecked_into::<HtmlButtonElement>()
-                    .click();
+        // 1. Tab switching: Alt+1..4, or Ctrl/Cmd+Digit1..4
+        if alt || (ctrl_or_meta && !e.shift_key()) {
+            match key.as_str() {
+                "1" => {
+                    e.prevent_default();
+                    switch_tab("identify");
+                    return;
+                }
+                "2" => {
+                    e.prevent_default();
+                    switch_tab("crack");
+                    return;
+                }
+                "3" => {
+                    e.prevent_default();
+                    switch_tab("ciphers");
+                    return;
+                }
+                "4" => {
+                    e.prevent_default();
+                    switch_tab("files");
+                    return;
+                }
+                _ => {}
             }
-        }) as Box<dyn FnMut(_)>);
-        textarea.set_onkeydown(Some(cb.as_ref().unchecked_ref()));
-        cb.forget();
-    }
+        }
+
+        // 2. Primary action execution: Ctrl/Cmd + Enter
+        if key == "Enter" && ctrl_or_meta {
+            e.prevent_default();
+            let active_id = window()
+                .unwrap()
+                .document()
+                .and_then(|d| d.active_element())
+                .map(|elem| elem.id())
+                .unwrap_or_default();
+
+            match active_id.as_str() {
+                "id-hash-input" => {
+                    el("id-btn").unchecked_into::<HtmlButtonElement>().click();
+                }
+                "th-text-input" => {
+                    el("th-btn-hash").unchecked_into::<HtmlButtonElement>().click();
+                }
+                "cmp-hash-a" | "cmp-hash-b" => {
+                    el("cmp-btn-compare")
+                        .unchecked_into::<HtmlButtonElement>()
+                        .click();
+                }
+                "cr-hash-input" | "cr-wordlist-text" => {
+                    el("cr-btn-dict")
+                        .unchecked_into::<HtmlButtonElement>()
+                        .click();
+                }
+                "ci-text" | "ci-param" => {
+                    el("ci-btn-encode")
+                        .unchecked_into::<HtmlButtonElement>()
+                        .click();
+                }
+                _ => {
+                    // Fallback to active tab primary button
+                    let active_tab = ["tab-identify", "tab-crack", "tab-ciphers", "tab-files"]
+                        .iter()
+                        .find(|&&p| {
+                            el(p).get_attribute("aria-hidden").as_deref() == Some("false")
+                        })
+                        .copied();
+
+                    match active_tab {
+                        Some("tab-identify") => {
+                            el("id-btn").unchecked_into::<HtmlButtonElement>().click();
+                        }
+                        Some("tab-crack") => {
+                            el("cr-btn-dict")
+                                .unchecked_into::<HtmlButtonElement>()
+                                .click();
+                        }
+                        Some("tab-ciphers") => {
+                            el("ci-btn-encode")
+                                .unchecked_into::<HtmlButtonElement>()
+                                .click();
+                        }
+                        Some("tab-files") => {
+                            el("fi-btn-hash")
+                                .unchecked_into::<HtmlButtonElement>()
+                                .click();
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        // 3. Escape: dismiss toasts
+        if key == "Escape" {
+            let t = el("toast").unchecked_into::<HtmlElement>();
+            t.class_list().remove_1("show").unwrap();
+        }
+    }) as Box<dyn FnMut(KeyboardEvent)>);
+
+    doc.add_event_listener_with_callback("keydown", keydown_cb.as_ref().unchecked_ref())
+        .unwrap();
+    keydown_cb.forget();
 }
 
 // ── Hash identify ─────────────────────────────────────────────
