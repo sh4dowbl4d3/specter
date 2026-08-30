@@ -422,7 +422,10 @@ fn setup_tabs() {
             _ => return,
         };
         let current_tab = btn.get_attribute("data-tab").unwrap_or_default();
-        let current_idx = tab_names.iter().position(|&t| t == current_tab).unwrap_or(0);
+        let current_idx = tab_names
+            .iter()
+            .position(|&t| t == current_tab)
+            .unwrap_or(0);
 
         let next_idx = match key.as_str() {
             "ArrowRight" | "ArrowDown" => Some((current_idx + 1) % tab_names.len()),
@@ -541,7 +544,9 @@ fn setup_keyboard_shortcuts() {
                     el("id-btn").unchecked_into::<HtmlButtonElement>().click();
                 }
                 "th-text-input" => {
-                    el("th-btn-hash").unchecked_into::<HtmlButtonElement>().click();
+                    el("th-btn-hash")
+                        .unchecked_into::<HtmlButtonElement>()
+                        .click();
                 }
                 "cmp-hash-a" | "cmp-hash-b" => {
                     el("cmp-btn-compare")
@@ -562,9 +567,7 @@ fn setup_keyboard_shortcuts() {
                     // Fallback to active tab primary button
                     let active_tab = ["tab-identify", "tab-crack", "tab-ciphers", "tab-files"]
                         .iter()
-                        .find(|&&p| {
-                            el(p).get_attribute("aria-hidden").as_deref() == Some("false")
-                        })
+                        .find(|&&p| el(p).get_attribute("aria-hidden").as_deref() == Some("false"))
                         .copied();
 
                     match active_tab {
