@@ -94,6 +94,26 @@ fn remove_vis_class(id: &str, c: &str) {
     class_list(id).remove_1(c).unwrap();
 }
 
+fn set_output_status(container_id: &str, state: &str, label: &str) {
+    if let Ok(Some(dot)) = el(container_id).query_selector(".live-dot") {
+        let dot_el = dot.unchecked_into::<HtmlElement>();
+        let cl = dot_el.class_list();
+        let _ = cl.remove_1("status-waiting");
+        let _ = cl.remove_1("status-ready");
+        let _ = cl.remove_1("status-active");
+        let _ = cl.remove_1("status-error");
+        let _ = match state {
+            "ready" => cl.add_1("status-ready"),
+            "active" => cl.add_1("status-active"),
+            "error" => cl.add_1("status-error"),
+            _ => cl.add_1("status-waiting"),
+        };
+    }
+    if let Ok(Some(lbl)) = el(container_id).query_selector(".output-label") {
+        lbl.set_text_content(Some(&format!("Readout / {label}")));
+    }
+}
+
 fn toast(msg: &str) {
     let t = el("toast").unchecked_into::<HtmlElement>();
     t.set_text_content(Some(msg));
@@ -568,12 +588,14 @@ fn setup_hash_identify() {
     click_handler("id-btn", || {
         let input = val("id-hash-input");
         if input.trim().is_empty() {
+            set_output_status("id-output", "waiting", "waiting");
             text("id-output-body", "Enter a hash first");
             return;
         }
         let results = identify(&input);
         let json = serde_json::to_string_pretty(&results)
             .unwrap_or_else(|_| "Serialize error".to_string());
+        set_output_status("id-output", "ready", "identified");
         text("id-output-body", &json);
     });
 }
@@ -582,6 +604,7 @@ fn setup_text_hashing() {
     click_handler("th-btn-hash", || {
         let input = val("th-text-input");
         if input.is_empty() {
+            set_output_status("th-output", "waiting", "waiting");
             text("th-output-body", "Enter text to hash first");
             return;
         }
@@ -589,12 +612,14 @@ fn setup_text_hashing() {
         if algo_id == "all" {
             let res = devastator_core::hasher::compute_all_hashes_text(&input);
             let json = serde_json::to_string_pretty(&res).unwrap_or_default();
+            set_output_status("th-output", "ready", "complete");
             text("th-output-body", &json);
         } else {
             let algo = devastator_core::hasher::HashAlgorithm::from_id(&algo_id)
                 .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
             let res = devastator_core::hasher::compute_hash_text(algo, &input);
             let json = serde_json::to_string_pretty(&res).unwrap_or_default();
+            set_output_status("th-output", "ready", "complete");
             text("th-output-body", &json);
         }
     });
@@ -602,11 +627,13 @@ fn setup_text_hashing() {
     click_handler("th-btn-multi", || {
         let input = val("th-text-input");
         if input.is_empty() {
+            set_output_status("th-output", "waiting", "waiting");
             text("th-output-body", "Enter text to hash first");
             return;
         }
         let res = devastator_core::hasher::compute_all_hashes_text(&input);
         let json = serde_json::to_string_pretty(&res).unwrap_or_default();
+        set_output_status("th-output", "ready", "complete");
         text("th-output-body", &json);
     });
 }
@@ -616,10 +643,16 @@ fn setup_hash_comparison() {
         let a = val("cmp-hash-a");
         let b = val("cmp-hash-b");
         if a.trim().is_empty() || b.trim().is_empty() {
+            set_output_status("cmp-output", "waiting", "waiting");
             text("cmp-output-body", "Enter two hashes to compare.");
             return;
         }
         let res = devastator_core::hasher::compare_hashes(&a, &b);
+        if res.matches {
+            set_output_status("cmp-output", "ready", "match");
+        } else {
+            set_output_status("cmp-output", "error", "mismatch");
+        }
         let json = serde_json::to_string_pretty(&res).unwrap_or_default();
         text("cmp-output-body", &json);
     });
@@ -631,6 +664,7 @@ fn setup_hash_comparison() {
         if let Ok(input) = el("cmp-hash-b").dyn_into::<HtmlTextAreaElement>() {
             input.set_value("");
         }
+        set_output_status("cmp-output", "waiting", "waiting");
         text("cmp-output-body", "Enter two hashes and click Compare.");
     });
 }
@@ -653,12 +687,18 @@ fn setup_crack() {
     click_handler("cr-btn-dict", || {
         let hash = val("cr-hash-input");
         if hash.trim().is_empty() {
+            set_output_status("cr-output", "waiting", "waiting");
             text("cr-output-body", "Enter a hash first");
             return;
         }
         let pasted = val("cr-wordlist-text");
         if !pasted.trim().is_empty() {
             let result = crack_from_list(&hash, &pasted);
+            if result.is_some() {
+                set_output_status("cr-output", "ready", "found");
+            } else {
+                set_output_status("cr-output", "error", "exhausted");
+            }
             let json = serde_json::to_string_pretty(&result).unwrap_or_default();
             text("cr-output-body", &json);
             return;
@@ -667,10 +707,18 @@ fn setup_crack() {
         match wordlist {
             Some(wl) => {
                 let result = crack_from_list(&hash, &wl);
+                if result.is_some() {
+                    set_output_status("cr-output", "ready", "found");
+                } else {
+                    set_output_status("cr-output", "error", "exhausted");
+                }
                 let json = serde_json::to_string_pretty(&result).unwrap_or_default();
                 text("cr-output-body", &json);
             }
-            None => text("cr-output-body", "Upload or paste a wordlist first"),
+            None => {
+                set_output_status("cr-output", "waiting", "waiting");
+                text("cr-output-body", "Upload or paste a wordlist first");
+            }
         }
     });
 
@@ -679,11 +727,13 @@ fn setup_crack() {
         let active = CRACK_RUN.with(|r| r.borrow().is_some());
         if active {
             CRACK_RUN.with(|r| *r.borrow_mut() = None);
+            set_output_status("cr-output", "waiting", "cancelled");
             return;
         }
 
         let hash = val("cr-hash-input");
         if hash.trim().is_empty() {
+            set_output_status("cr-output", "waiting", "waiting");
             text("cr-output-body", "Enter a hash first");
             return;
         }
@@ -697,6 +747,7 @@ fn setup_crack() {
         let session = match BruteForceSession::new(&config) {
             Ok(s) => s,
             Err(e) => {
+                set_output_status("cr-output", "error", "error");
                 text("cr-output-body", &format!("Brute-force unavailable: {e}"));
                 toast_error(&format!("Cannot start brute-force: {e}"));
                 return;
@@ -713,6 +764,7 @@ fn setup_crack() {
             &format!("Cracking — 0 / {}", format_count(total)),
         );
         show_progress("cr");
+        set_output_status("cr-output", "active", "brute-forcing...");
         set_bf_button_label("Cancel");
 
         let cell: Rc<RefCell<Option<BruteForceSession>>> = Rc::new(RefCell::new(Some(session)));
@@ -770,6 +822,7 @@ fn schedule_cracking_step(run_id: u64, cell: Rc<RefCell<Option<BruteForceSession
                 let result = finish_session(&cell, StepOutcome::Cracked);
                 end_run(Some(run_id));
                 hide_progress("cr");
+                set_output_status("cr-output", "ready", "found");
                 let json = serde_json::to_string_pretty(&result).unwrap_or_default();
                 text("cr-output-body", &json);
                 toast(&format!(
@@ -782,6 +835,7 @@ fn schedule_cracking_step(run_id: u64, cell: Rc<RefCell<Option<BruteForceSession
                 if !cancelled {
                     let result = finish_session(&cell, StepOutcome::Exhausted);
                     end_run(Some(run_id));
+                    set_output_status("cr-output", "error", "exhausted");
                     let json = serde_json::to_string_pretty(&result).unwrap_or_default();
                     text("cr-output-body", &json);
                     toast(&format!(
@@ -792,6 +846,7 @@ fn schedule_cracking_step(run_id: u64, cell: Rc<RefCell<Option<BruteForceSession
                     // User-initiated cancel: discard silently.
                     cell.borrow_mut().take();
                     end_run(Some(run_id));
+                    set_output_status("cr-output", "waiting", "cancelled");
                 }
                 hide_progress("cr");
             }
@@ -904,11 +959,13 @@ fn setup_cipher_tools() {
     click_handler("ci-btn-encode", || {
         let input = val("ci-text");
         if input.trim().is_empty() {
+            set_output_status("ci-output", "waiting", "waiting");
             text("ci-output-body", "Enter text first");
             return;
         }
         let cipher = val("ci-type");
         if cipher == "auto" {
+            set_output_status("ci-output", "waiting", "waiting");
             text("ci-output-body", "Select a specific cipher for encoding");
             return;
         }
@@ -920,15 +977,20 @@ fn setup_cipher_tools() {
                     "cipher": cipher,
                 }))
                 .unwrap_or_default();
+                set_output_status("ci-output", "ready", "encoded");
                 text("ci-output-body", &out);
             }
-            Err(e) => text("ci-output-body", &format!("Error: {e}")),
+            Err(e) => {
+                set_output_status("ci-output", "error", "error");
+                text("ci-output-body", &format!("Error: {e}"));
+            }
         }
     });
 
     click_handler("ci-btn-decode", || {
         let input = val("ci-text");
         if input.trim().is_empty() {
+            set_output_status("ci-output", "waiting", "waiting");
             text("ci-output-body", "Enter text first");
             return;
         }
@@ -936,6 +998,7 @@ fn setup_cipher_tools() {
         if cipher == "auto" {
             let detections = detect_cipher(&input);
             let json = serde_json::to_string_pretty(&detections).unwrap_or_default();
+            set_output_status("ci-output", "ready", "detected");
             text("ci-output-body", &json);
             return;
         }
@@ -947,20 +1010,26 @@ fn setup_cipher_tools() {
                     "cipher": cipher,
                 }))
                 .unwrap_or_default();
+                set_output_status("ci-output", "ready", "decoded");
                 text("ci-output-body", &out);
             }
-            Err(e) => text("ci-output-body", &format!("Error: {e}")),
+            Err(e) => {
+                set_output_status("ci-output", "error", "error");
+                text("ci-output-body", &format!("Error: {e}"));
+            }
         }
     });
 
     click_handler("ci-btn-detect", || {
         let input = val("ci-text");
         if input.trim().is_empty() {
+            set_output_status("ci-output", "waiting", "waiting");
             text("ci-output-body", "Enter text first");
             return;
         }
         let detections = detect_cipher(&input);
         let json = serde_json::to_string_pretty(&detections).unwrap_or_default();
+        set_output_status("ci-output", "ready", "detected");
         text("ci-output-body", &json);
     });
 }
@@ -998,9 +1067,13 @@ fn setup_file_tools() {
     click_handler("fi-btn-hash", || {
         let file = FI_FILE.with(|f| f.borrow().clone());
         match file {
-            None => text("fi-output-body", "Upload a file first"),
+            None => {
+                set_output_status("fi-output", "waiting", "waiting");
+                text("fi-output-body", "Upload a file first");
+            }
             Some(f) => {
                 show_progress_msg("fi", "Reading file into memory...");
+                set_output_status("fi-output", "active", "reading...");
                 let algo = val("fi-algo");
                 let fname = f.name();
                 file_read_binary_handler(
@@ -1029,12 +1102,14 @@ fn setup_file_tools() {
                         FILE_HASH_REPORT
                             .with(|r| *r.borrow_mut() = Some((fname.clone(), out.clone())));
                         hide_progress("fi");
+                        set_output_status("fi-output", "ready", "complete");
                         text("fi-output-body", &out);
                         show("fi-btn-download");
                         show("fi-btn-reset");
                     },
                     |e| {
                         hide_progress("fi");
+                        set_output_status("fi-output", "error", "error");
                         text("fi-output-body", &format!("Error reading file: {e}"));
                     },
                 );
@@ -1062,6 +1137,7 @@ fn setup_file_tools() {
         text("fi-meta", "");
         hide("fi-btn-download");
         hide("fi-btn-reset");
+        set_output_status("fi-output", "waiting", "waiting");
         text("fi-output-body", "Upload a file and click Hash file.");
         toast("Workspace reset");
     });
@@ -1073,9 +1149,13 @@ fn setup_file_tools() {
     click_handler("fci-btn-encode", || {
         let file = FCI_FILE.with(|f| f.borrow().clone());
         match file {
-            None => text("fci-output-body", "Upload a file first"),
+            None => {
+                set_output_status("fci-output", "waiting", "waiting");
+                text("fci-output-body", "Upload a file first");
+            }
             Some(f) => {
                 show_progress("fci");
+                set_output_status("fci-output", "active", "encoding...");
                 let cipher = val("fci-type");
                 file_read_handler(
                     f,
@@ -1089,12 +1169,14 @@ fn setup_file_tools() {
                         };
                         CIPHER_FILE_CONTENT
                             .with(|st| *st.borrow_mut() = Some((cipher.clone(), result.clone())));
+                        set_output_status("fci-output", "ready", "complete");
                         text("fci-output-body", &result);
                         hide_progress("fci");
                         show("fci-btn-download");
                     },
                     |e| {
                         hide_progress("fci");
+                        set_output_status("fci-output", "error", "error");
                         text("fci-output-body", &format!("Error: {e}"));
                     },
                 );
@@ -1105,9 +1187,13 @@ fn setup_file_tools() {
     click_handler("fci-btn-decode", || {
         let file = FCI_FILE.with(|f| f.borrow().clone());
         match file {
-            None => text("fci-output-body", "Upload a file first"),
+            None => {
+                set_output_status("fci-output", "waiting", "waiting");
+                text("fci-output-body", "Upload a file first");
+            }
             Some(f) => {
                 show_progress("fci");
+                set_output_status("fci-output", "active", "decoding...");
                 let cipher = val("fci-type");
                 file_read_handler(
                     f,
@@ -1124,18 +1210,21 @@ fn setup_file_tools() {
                                 CIPHER_FILE_CONTENT.with(|st| {
                                     *st.borrow_mut() = Some((cipher.clone(), decoded.clone()))
                                 });
+                                set_output_status("fci-output", "ready", "complete");
                                 text("fci-output-body", &decoded);
                                 hide_progress("fci");
                                 show("fci-btn-download");
                             }
                             Err(e) => {
                                 hide_progress("fci");
+                                set_output_status("fci-output", "error", "error");
                                 text("fci-output-body", &format!("Error: {e}"));
                             }
                         }
                     },
                     |e| {
                         hide_progress("fci");
+                        set_output_status("fci-output", "error", "error");
                         text("fci-output-body", &format!("Error: {e}"));
                     },
                 );
