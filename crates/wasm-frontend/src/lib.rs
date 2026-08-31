@@ -8,6 +8,7 @@ use devastator_core::cipher_tools::detect_cipher;
 use devastator_core::cracker::brute_force::*;
 use devastator_core::cracker::dictionary::*;
 use devastator_core::hash_id::*;
+use devastator_core::history::{NewHistoryEntry, OperationType, SessionHistory};
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -23,6 +24,7 @@ thread_local! {
     static FILE_HASH_REPORT: RefCell<Option<(String, String)>> = const { RefCell::new(None) };
     static FCI_FILE: RefCell<Option<File>> = const { RefCell::new(None) };
     static TOAST_TIMER: RefCell<Option<i32>> = const { RefCell::new(None) };
+    static SESSION_HISTORY: RefCell<SessionHistory> = RefCell::new(SessionHistory::default());
 }
 
 #[wasm_bindgen(start)]
@@ -42,6 +44,7 @@ fn start() -> Result<(), JsValue> {
     setup_ci_type_change();
     setup_copy_buttons();
     setup_keyboard_shortcuts();
+    setup_history_drawer();
     setup_hash_identify();
     setup_text_hashing();
     setup_hash_comparison();
@@ -214,6 +217,306 @@ fn download_file(name: &str, content: &str) {
     anchor.click();
     doc.body().unwrap().remove_child(&anchor).unwrap();
     Url::revoke_object_url(&url).unwrap();
+}
+
+fn now_timestamp_ms() -> u64 {
+    js_sys::Date::now() as u64
+}
+
+fn update_history_badge() {
+    let count = SESSION_HISTORY.with(|h| h.borrow().len());
+    let s = count.to_string();
+    text("history-count", &s);
+    text("drawer-count-pill", &s);
+}
+
+fn open_history_drawer() {
+    let d = el("history-drawer");
+    let b = el("history-backdrop");
+    let _ = d.class_list().remove_1("hidden");
+    let _ = b.class_list().remove_1("hidden");
+    let _ = d.class_list().add_1("open");
+    let _ = b.class_list().add_1("open");
+    let _ = d.set_attribute("aria-hidden", "false");
+    let _ = el("history-toggle-btn").set_attribute("aria-expanded", "true");
+}
+
+fn close_history_drawer() {
+    let d = el("history-drawer");
+    let b = el("history-backdrop");
+    let _ = d.class_list().remove_1("open");
+    let _ = b.class_list().remove_1("open");
+    let _ = d.class_list().add_1("hidden");
+    let _ = b.class_list().add_1("hidden");
+    let _ = d.set_attribute("aria-hidden", "true");
+    let _ = el("history-toggle-btn").set_attribute("aria-expanded", "false");
+}
+
+fn toggle_history_drawer() {
+    if el("history-drawer").class_list().contains("open") {
+        close_history_drawer();
+    } else {
+        open_history_drawer();
+    }
+}
+
+fn render_history_list() {
+    let list = el("history-list");
+    list.set_inner_html("");
+
+    let is_empty = SESSION_HISTORY.with(|h| h.borrow().is_empty());
+    if is_empty {
+        let empty = window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .create_element("div")
+            .unwrap();
+        empty.set_class_name("history-empty");
+        empty.set_text_content(Some("No operations recorded yet in this session."));
+        let _ = list.append_child(&empty);
+        return;
+    }
+
+    SESSION_HISTORY.with(|h| {
+        let history = h.borrow();
+        for entry in history.iter_recent() {
+            let card = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("div")
+                .unwrap();
+            card.set_class_name("history-card");
+
+            let hd = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("div")
+                .unwrap();
+            hd.set_class_name("history-card-hd");
+
+            let tag = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("span")
+                .unwrap();
+            tag.set_class_name("history-tag");
+            tag.set_text_content(Some(entry.op_type.tag()));
+
+            let id_span = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("span")
+                .unwrap();
+            id_span.set_text_content(Some(&format!("#{:03}", entry.id)));
+
+            let _ = hd.append_child(&tag);
+            let _ = hd.append_child(&id_span);
+            let _ = card.append_child(&hd);
+
+            let title = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("div")
+                .unwrap();
+            title.set_class_name("history-title");
+            title.set_text_content(Some(&entry.title));
+            let _ = card.append_child(&title);
+
+            let summary = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("div")
+                .unwrap();
+            summary.set_class_name("history-summary");
+            summary.set_text_content(Some(&entry.summary));
+            let _ = card.append_child(&summary);
+
+            if !entry.output_preview.is_empty() {
+                let preview = window()
+                    .unwrap()
+                    .document()
+                    .unwrap()
+                    .create_element("div")
+                    .unwrap();
+                preview.set_class_name("history-preview");
+                preview.set_text_content(Some(&entry.output_preview));
+                let _ = card.append_child(&preview);
+            }
+
+            let actions = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("div")
+                .unwrap();
+            actions.set_class_name("history-card-actions");
+
+            let copy_btn = window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("button")
+                .unwrap()
+                .unchecked_into::<HtmlButtonElement>();
+            copy_btn.set_class_name("history-card-btn");
+            copy_btn.set_text_content(Some("Copy Output"));
+            let out_text = entry.output_preview.clone();
+            let cb = Closure::wrap(Box::new(move || {
+                copy_text(&out_text);
+            }) as Box<dyn FnMut()>);
+            copy_btn
+                .add_event_listener_with_callback("click", cb.as_ref().unchecked_ref())
+                .unwrap();
+            cb.forget();
+
+            let _ = actions.append_child(&copy_btn);
+            let _ = card.append_child(&actions);
+
+            let _ = list.append_child(&card);
+        }
+    });
+}
+
+fn record_session_op(
+    op_type: OperationType,
+    title: &str,
+    summary: &str,
+    input: &str,
+    output: &str,
+    success: bool,
+) {
+    let entry = NewHistoryEntry::new(
+        op_type,
+        title,
+        summary,
+        input,
+        output,
+        success,
+        now_timestamp_ms(),
+    );
+    SESSION_HISTORY.with(|h| {
+        h.borrow_mut().record(entry);
+    });
+    update_history_badge();
+    render_history_list();
+}
+
+fn wipe_session() {
+    SESSION_HISTORY.with(|h| h.borrow_mut().clear());
+    WORDLIST.with(|wl| *wl.borrow_mut() = None);
+    CIPHER_FILE_CONTENT.with(|c| *c.borrow_mut() = None);
+    FI_FILE.with(|f| *f.borrow_mut() = None);
+    FILE_HASH_REPORT.with(|r| *r.borrow_mut() = None);
+    FCI_FILE.with(|f| *f.borrow_mut() = None);
+    CRACK_RUN.with(|r| *r.borrow_mut() = None);
+
+    // Clear identify inputs & outputs
+    if let Ok(i) = el("id-hash-input").dyn_into::<HtmlTextAreaElement>() {
+        i.set_value("");
+    }
+    text("id-output-body", "Enter a hash and click Identify.");
+    set_output_status("id-output", "ready", "ready");
+
+    // Clear text hashing inputs & outputs
+    if let Ok(i) = el("th-text-input").dyn_into::<HtmlTextAreaElement>() {
+        i.set_value("");
+    }
+    text("th-output-body", "Enter text and click Hash text.");
+    set_output_status("th-output", "waiting", "waiting");
+
+    // Clear hash comparison inputs & outputs
+    if let Ok(i) = el("cmp-hash-a").dyn_into::<HtmlTextAreaElement>() {
+        i.set_value("");
+    }
+    if let Ok(i) = el("cmp-hash-b").dyn_into::<HtmlTextAreaElement>() {
+        i.set_value("");
+    }
+    text("cmp-output-body", "Enter two hashes and click Compare.");
+    set_output_status("cmp-output", "waiting", "waiting");
+
+    // Clear cracking inputs & outputs
+    if let Ok(i) = el("cr-hash-input").dyn_into::<HtmlTextAreaElement>() {
+        i.set_value("");
+    }
+    if let Ok(i) = el("cr-wordlist-text").dyn_into::<HtmlTextAreaElement>() {
+        i.set_value("");
+    }
+    if let Ok(i) = el("cr-file-input").dyn_into::<HtmlInputElement>() {
+        i.set_value("");
+    }
+    text("cr-drop-text", "Drop a wordlist here, or browse");
+    text("cr-output-body", "Crack results will appear here.");
+    hide_progress("cr");
+    set_output_status("cr-output", "waiting", "waiting");
+
+    // Clear cipher inputs & outputs
+    if let Ok(i) = el("ci-text").dyn_into::<HtmlTextAreaElement>() {
+        i.set_value("");
+    }
+    if let Ok(i) = el("ci-param").dyn_into::<HtmlInputElement>() {
+        i.set_value("");
+    }
+    text("ci-output-body", "Enter text and run a command.");
+    set_output_status("ci-output", "waiting", "waiting");
+
+    // Clear file tools inputs & outputs
+    if let Ok(i) = el("fi-file-input").dyn_into::<HtmlInputElement>() {
+        i.set_value("");
+    }
+    text("fi-drop-text", "Drop a file here, or browse");
+    hide("fi-meta");
+    text("fi-meta", "");
+    hide("fi-btn-download");
+    hide("fi-btn-reset");
+    text("fi-output-body", "Upload a file and click Hash file.");
+    hide_progress("fi");
+    set_output_status("fi-output", "waiting", "waiting");
+
+    // Clear cipher file inputs & outputs
+    if let Ok(i) = el("fci-file-input").dyn_into::<HtmlInputElement>() {
+        i.set_value("");
+    }
+    text("fci-drop-text", "Drop a text file here");
+    text("fci-output-body", "Upload a file to encode or decode.");
+    hide("fci-btn-download");
+    hide_progress("fci");
+    set_output_status("fci-output", "waiting", "waiting");
+
+    update_history_badge();
+    render_history_list();
+    toast("Session memory wiped cleanly");
+}
+
+fn setup_history_drawer() {
+    click_handler("history-toggle-btn", toggle_history_drawer);
+    click_handler("history-close-btn", close_history_drawer);
+    click_handler("history-backdrop", close_history_drawer);
+    click_handler("session-wipe-btn", wipe_session);
+    click_handler("history-wipe-drawer-btn", wipe_session);
+
+    click_handler("history-export-json-btn", || {
+        let json_res = SESSION_HISTORY.with(|h| h.borrow().export_json());
+        match json_res {
+            Ok(json_str) => {
+                download_file("devastator-session-audit.json", &json_str);
+                toast("Session log exported as JSON");
+            }
+            Err(e) => toast_error(&format!("Export error: {e}")),
+        }
+    });
+
+    click_handler("history-export-md-btn", || {
+        let md_str = SESSION_HISTORY.with(|h| h.borrow().export_markdown());
+        download_file("devastator-session-audit.md", &md_str);
+        toast("Session log exported as Markdown");
+    });
 }
 
 fn click_handler(id: &str, cb: impl FnMut() + 'static) {
@@ -595,9 +898,20 @@ fn setup_keyboard_shortcuts() {
             }
         }
 
-        // 3. Escape: dismiss toasts
+        // 3. History toggle: Alt+H / Ctrl+H / Cmd+H
+        if (key == "h" || key == "H") && (alt || ctrl_or_meta) {
+            e.prevent_default();
+            toggle_history_drawer();
+            return;
+        }
+
+        // 4. Escape: close drawer if open, otherwise dismiss toasts
         if key == "Escape" {
-            dismiss_toast();
+            if el("history-drawer").class_list().contains("open") {
+                close_history_drawer();
+            } else {
+                dismiss_toast();
+            }
         }
     }) as Box<dyn FnMut(KeyboardEvent)>);
 
@@ -621,6 +935,19 @@ fn setup_hash_identify() {
             .unwrap_or_else(|_| "Serialize error".to_string());
         set_output_status("id-output", "ready", "identified");
         text("id-output-body", &json);
+
+        let top_type = results
+            .first()
+            .map(|r| r.hash_type.name())
+            .unwrap_or("Unknown");
+        record_session_op(
+            OperationType::Identify,
+            "Hash Identification",
+            &format!("Identified as {top_type} ({} matches)", results.len()),
+            &input,
+            &json,
+            true,
+        );
     });
 }
 
@@ -638,6 +965,14 @@ fn setup_text_hashing() {
             let json = serde_json::to_string_pretty(&res).unwrap_or_default();
             set_output_status("th-output", "ready", "complete");
             text("th-output-body", &json);
+            record_session_op(
+                OperationType::TextHash,
+                "Multi-Hash Text Computation",
+                &format!("Computed 9 hash algorithms for {} chars", input.len()),
+                &input,
+                &json,
+                true,
+            );
         } else {
             let algo = devastator_core::hasher::HashAlgorithm::from_id(&algo_id)
                 .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
@@ -645,6 +980,14 @@ fn setup_text_hashing() {
             let json = serde_json::to_string_pretty(&res).unwrap_or_default();
             set_output_status("th-output", "ready", "complete");
             text("th-output-body", &json);
+            record_session_op(
+                OperationType::TextHash,
+                &format!("Text Hash ({})", algo.name()),
+                &format!("Computed {} digest: {}", algo.name(), res.hash),
+                &input,
+                &json,
+                true,
+            );
         }
     });
 
@@ -659,6 +1002,14 @@ fn setup_text_hashing() {
         let json = serde_json::to_string_pretty(&res).unwrap_or_default();
         set_output_status("th-output", "ready", "complete");
         text("th-output-body", &json);
+        record_session_op(
+            OperationType::TextHash,
+            "Multi-Hash Text Computation",
+            &format!("Computed 9 hash algorithms for {} chars", input.len()),
+            &input,
+            &json,
+            true,
+        );
     });
 }
 
@@ -679,6 +1030,18 @@ fn setup_hash_comparison() {
         }
         let json = serde_json::to_string_pretty(&res).unwrap_or_default();
         text("cmp-output-body", &json);
+        record_session_op(
+            OperationType::HashComparison,
+            "Hash Comparison",
+            if res.matches {
+                "Digests MATCH perfectly"
+            } else {
+                "Digests DO NOT match"
+            },
+            &format!("A: {a}\nB: {b}"),
+            &json,
+            res.matches,
+        );
     });
 
     click_handler("cmp-btn-clear", || {
@@ -725,6 +1088,20 @@ fn setup_crack() {
             }
             let json = serde_json::to_string_pretty(&result).unwrap_or_default();
             text("cr-output-body", &json);
+            let summary = if let Some(r) = &result {
+                let pt = r.plaintext.as_deref().unwrap_or("?");
+                format!("Cracked: '{pt}' via {}", r.method)
+            } else {
+                "Exhausted pasted wordlist without match".to_string()
+            };
+            record_session_op(
+                OperationType::CrackDictionary,
+                "Dictionary Crack",
+                &summary,
+                &hash,
+                &json,
+                result.is_some(),
+            );
             return;
         }
         let wordlist = WORDLIST.with(|wl| wl.borrow().clone());
@@ -738,6 +1115,20 @@ fn setup_crack() {
                 }
                 let json = serde_json::to_string_pretty(&result).unwrap_or_default();
                 text("cr-output-body", &json);
+                let summary = if let Some(r) = &result {
+                    let pt = r.plaintext.as_deref().unwrap_or("?");
+                    format!("Cracked: '{pt}' via {}", r.method)
+                } else {
+                    "Exhausted uploaded wordlist without match".to_string()
+                };
+                record_session_op(
+                    OperationType::CrackDictionary,
+                    "Dictionary Crack",
+                    &summary,
+                    &hash,
+                    &json,
+                    result.is_some(),
+                );
             }
             None => {
                 set_output_status("cr-output", "waiting", "waiting");
@@ -849,10 +1240,19 @@ fn schedule_cracking_step(run_id: u64, cell: Rc<RefCell<Option<BruteForceSession
                 set_output_status("cr-output", "ready", "found");
                 let json = serde_json::to_string_pretty(&result).unwrap_or_default();
                 text("cr-output-body", &json);
-                toast(&format!(
-                    "Cracked: {}",
-                    result.plaintext.as_deref().unwrap_or("?")
-                ));
+                let pt = result.plaintext.as_deref().unwrap_or("?");
+                toast(&format!("Cracked: {pt}"));
+                record_session_op(
+                    OperationType::CrackBruteForce,
+                    "Brute-Force Crack (Found)",
+                    &format!(
+                        "Found '{pt}' after {} attempts",
+                        format_count(result.attempts)
+                    ),
+                    "Target hash",
+                    &json,
+                    true,
+                );
             }
             StepOutcome::Exhausted => {
                 let cancelled = CRACK_RUN.with(|r| r.borrow().is_none());
@@ -866,6 +1266,17 @@ fn schedule_cracking_step(run_id: u64, cell: Rc<RefCell<Option<BruteForceSession
                         "Not found after {} attempts",
                         format_count(result.attempts)
                     ));
+                    record_session_op(
+                        OperationType::CrackBruteForce,
+                        "Brute-Force Crack (Exhausted)",
+                        &format!(
+                            "Exhausted search space after {} attempts",
+                            format_count(result.attempts)
+                        ),
+                        "Target hash",
+                        &json,
+                        false,
+                    );
                 } else {
                     // User-initiated cancel: discard silently.
                     cell.borrow_mut().take();
@@ -1003,6 +1414,14 @@ fn setup_cipher_tools() {
                 .unwrap_or_default();
                 set_output_status("ci-output", "ready", "encoded");
                 text("ci-output-body", &out);
+                record_session_op(
+                    OperationType::CipherTransform,
+                    &format!("Cipher Encode ({cipher})"),
+                    &format!("Encoded {} chars with {cipher}", input.len()),
+                    &input,
+                    &out,
+                    true,
+                );
             }
             Err(e) => {
                 set_output_status("ci-output", "error", "error");
@@ -1024,6 +1443,14 @@ fn setup_cipher_tools() {
             let json = serde_json::to_string_pretty(&detections).unwrap_or_default();
             set_output_status("ci-output", "ready", "detected");
             text("ci-output-body", &json);
+            record_session_op(
+                OperationType::CipherDetect,
+                "Cipher Auto-Detection",
+                &format!("Detected {} potential candidates", detections.len()),
+                &input,
+                &json,
+                true,
+            );
             return;
         }
         let param = val("ci-param");
@@ -1036,6 +1463,14 @@ fn setup_cipher_tools() {
                 .unwrap_or_default();
                 set_output_status("ci-output", "ready", "decoded");
                 text("ci-output-body", &out);
+                record_session_op(
+                    OperationType::CipherTransform,
+                    &format!("Cipher Decode ({cipher})"),
+                    &format!("Decoded {} chars with {cipher}", input.len()),
+                    &input,
+                    &out,
+                    true,
+                );
             }
             Err(e) => {
                 set_output_status("ci-output", "error", "error");
@@ -1055,6 +1490,14 @@ fn setup_cipher_tools() {
         let json = serde_json::to_string_pretty(&detections).unwrap_or_default();
         set_output_status("ci-output", "ready", "detected");
         text("ci-output-body", &json);
+        record_session_op(
+            OperationType::CipherDetect,
+            "Cipher Auto-Detection",
+            &format!("Detected {} potential candidates", detections.len()),
+            &input,
+            &json,
+            true,
+        );
     });
 }
 
@@ -1130,6 +1573,14 @@ fn setup_file_tools() {
                         text("fi-output-body", &out);
                         show("fi-btn-download");
                         show("fi-btn-reset");
+                        record_session_op(
+                            OperationType::FileHash,
+                            &format!("File Hash: {fname}"),
+                            &format!("Computed {algo} digest for file ({fname})"),
+                            &fname,
+                            &out,
+                            true,
+                        );
                     },
                     |e| {
                         hide_progress("fi");
@@ -1181,6 +1632,7 @@ fn setup_file_tools() {
                 show_progress("fci");
                 set_output_status("fci-output", "active", "encoding...");
                 let cipher = val("fci-type");
+                let fname = f.name();
                 file_read_handler(
                     f,
                     move |content| {
@@ -1197,6 +1649,14 @@ fn setup_file_tools() {
                         text("fci-output-body", &result);
                         hide_progress("fci");
                         show("fci-btn-download");
+                        record_session_op(
+                            OperationType::FileCipher,
+                            &format!("File Encode ({cipher}): {fname}"),
+                            &format!("Encoded file {fname} using {cipher}"),
+                            &fname,
+                            &result,
+                            true,
+                        );
                     },
                     |e| {
                         hide_progress("fci");
@@ -1219,6 +1679,7 @@ fn setup_file_tools() {
                 show_progress("fci");
                 set_output_status("fci-output", "active", "decoding...");
                 let cipher = val("fci-type");
+                let fname = f.name();
                 file_read_handler(
                     f,
                     move |content| {
@@ -1238,6 +1699,14 @@ fn setup_file_tools() {
                                 text("fci-output-body", &decoded);
                                 hide_progress("fci");
                                 show("fci-btn-download");
+                                record_session_op(
+                                    OperationType::FileCipher,
+                                    &format!("File Decode ({cipher}): {fname}"),
+                                    &format!("Decoded file {fname} using {cipher}"),
+                                    &fname,
+                                    &decoded,
+                                    true,
+                                );
                             }
                             Err(e) => {
                                 hide_progress("fci");

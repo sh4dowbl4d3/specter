@@ -60,6 +60,42 @@ pub struct HistoryEntry {
     pub success: bool,
 }
 
+/// Parameters for recording a new operation in session history.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewHistoryEntry {
+    pub op_type: OperationType,
+    pub title: String,
+    pub summary: String,
+    pub input_preview: String,
+    pub output_preview: String,
+    pub success: bool,
+    pub timestamp_ms: u64,
+}
+
+impl NewHistoryEntry {
+    /// Creates a new entry description for recording.
+    #[must_use]
+    pub fn new(
+        op_type: OperationType,
+        title: impl Into<String>,
+        summary: impl Into<String>,
+        input_preview: impl Into<String>,
+        output_preview: impl Into<String>,
+        success: bool,
+        timestamp_ms: u64,
+    ) -> Self {
+        Self {
+            op_type,
+            title: title.into(),
+            summary: summary.into(),
+            input_preview: input_preview.into(),
+            output_preview: output_preview.into(),
+            success,
+            timestamp_ms,
+        }
+    }
+}
+
 /// Bounded, in-memory ephemeral session history store.
 /// Zero persistence to storage or disk — when the browser tab closes, all data disappears.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,25 +123,16 @@ impl SessionHistory {
     }
 
     /// Record a new operation in session history. If the buffer is full, the oldest entry is dropped.
-    pub fn record(
-        &mut self,
-        op_type: OperationType,
-        title: impl Into<String>,
-        summary: impl Into<String>,
-        input_preview: impl Into<String>,
-        output_preview: impl Into<String>,
-        success: bool,
-        timestamp_ms: u64,
-    ) -> &HistoryEntry {
+    pub fn record(&mut self, new_entry: NewHistoryEntry) -> &HistoryEntry {
         let entry = HistoryEntry {
             id: self.next_id,
-            timestamp_ms,
-            op_type,
-            title: title.into(),
-            summary: summary.into(),
-            input_preview: input_preview.into(),
-            output_preview: output_preview.into(),
-            success,
+            timestamp_ms: new_entry.timestamp_ms,
+            op_type: new_entry.op_type,
+            title: new_entry.title,
+            summary: new_entry.summary,
+            input_preview: new_entry.input_preview,
+            output_preview: new_entry.output_preview,
+            success: new_entry.success,
         };
         self.next_id = self.next_id.saturating_add(1);
 
@@ -169,7 +196,11 @@ impl SessionHistory {
         }
 
         for entry in self.iter_recent() {
-            let status = if entry.success { "✅ SUCCESS" } else { "⚠️ WARNING / FAILURE" };
+            let status = if entry.success {
+                "✅ SUCCESS"
+            } else {
+                "⚠️ WARNING / FAILURE"
+            };
             md.push_str(&format!(
                 "### #{:03} [{}] {} ({})\n\n",
                 entry.id,
@@ -180,10 +211,16 @@ impl SessionHistory {
             md.push_str(&format!("- **Category**: {}\n", entry.op_type.label()));
             md.push_str(&format!("- **Summary**: {}\n", entry.summary));
             if !entry.input_preview.is_empty() {
-                md.push_str(&format!("- **Input Preview**:\n```\n{}\n```\n", entry.input_preview));
+                md.push_str(&format!(
+                    "- **Input Preview**:\n```\n{}\n```\n",
+                    entry.input_preview
+                ));
             }
             if !entry.output_preview.is_empty() {
-                md.push_str(&format!("- **Output Preview**:\n```\n{}\n```\n", entry.output_preview));
+                md.push_str(&format!(
+                    "- **Output Preview**:\n```\n{}\n```\n",
+                    entry.output_preview
+                ));
             }
             md.push_str("\n---\n\n");
         }
@@ -202,7 +239,7 @@ mod tests {
         assert!(history.is_empty());
         assert_eq!(history.len(), 0);
 
-        history.record(
+        history.record(NewHistoryEntry::new(
             OperationType::Identify,
             "MD5 Identification",
             "Identified as MD5 with high confidence",
@@ -210,7 +247,7 @@ mod tests {
             "MD5 / NTLM",
             true,
             1_700_000_000_000,
-        );
+        ));
 
         assert_eq!(history.len(), 1);
         assert!(!history.is_empty());
@@ -226,7 +263,7 @@ mod tests {
         let mut history = SessionHistory::new(3);
 
         for i in 1..=5 {
-            history.record(
+            history.record(NewHistoryEntry::new(
                 OperationType::TextHash,
                 format!("Hash operation #{i}"),
                 format!("Computed SHA-256 for input #{i}"),
@@ -234,7 +271,7 @@ mod tests {
                 format!("hash_{i}"),
                 true,
                 1_700_000_000_000 + i,
-            );
+            ));
         }
 
         assert_eq!(history.len(), 3);
@@ -251,7 +288,7 @@ mod tests {
     #[test]
     fn test_session_history_clear() {
         let mut history = SessionHistory::new(10);
-        history.record(
+        history.record(NewHistoryEntry::new(
             OperationType::CrackDictionary,
             "Cracked password",
             "Found 'hello'",
@@ -259,7 +296,7 @@ mod tests {
             "hello",
             true,
             1_700_000_000_000,
-        );
+        ));
         assert_eq!(history.len(), 1);
 
         history.clear();
@@ -267,7 +304,7 @@ mod tests {
         assert!(history.is_empty());
 
         // Next record starts from id 1
-        let entry = history.record(
+        let entry = history.record(NewHistoryEntry::new(
             OperationType::FileHash,
             "Hashed file",
             "Computed 9 hashes",
@@ -275,14 +312,14 @@ mod tests {
             "sha256: ...",
             true,
             1_700_000_000_000,
-        );
+        ));
         assert_eq!(entry.id, 1);
     }
 
     #[test]
     fn test_session_history_markdown_export() {
         let mut history = SessionHistory::new(5);
-        history.record(
+        history.record(NewHistoryEntry::new(
             OperationType::CipherTransform,
             "Base64 Encode",
             "Encoded 11 bytes to Base64",
@@ -290,7 +327,7 @@ mod tests {
             "aGVsbG8gd29ybGQ=",
             true,
             1_700_000_000_000,
-        );
+        ));
 
         let md = history.export_markdown();
         assert!(md.contains("# Devastator Session Audit Log"));
