@@ -99,60 +99,13 @@
     document.documentElement.classList.add('motion-ready');
     gsap.defaults({ ease: 'power3.out' });
 
-    const intro = gsap.timeline({ defaults: { duration: 0.8 } });
+    const intro = gsap.timeline({ defaults: { duration: 0.7 } });
     intro
-      .from('.site-header', { y: -18, autoAlpha: 0 })
-      .from('.hero-kicker > *', { y: 12, autoAlpha: 0, stagger: 0.06 }, '-=0.45')
-      .from('.hero h1 > *', { yPercent: 110, autoAlpha: 0, stagger: 0.12, duration: 1.05 }, '-=0.35')
-      .from('.hero-deck, .hero-plate, .hero-aside', { y: 24, autoAlpha: 0, stagger: 0.12 }, '-=0.5')
-      .from('.signal-strip > *', { y: 18, autoAlpha: 0, stagger: 0.08 }, '-=0.35');
-
-    if (window.ScrollTrigger) {
-      gsap.to('.hero h1', {
-        yPercent: -12,
-        rotation: -1,
-        ease: 'none',
-        scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 1 }
-      });
-      gsap.to('.hero-plate', {
-        y: -50,
-        rotation: 3,
-        ease: 'none',
-        scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 1 }
-      });
-      gsap.from('.workspace-head, #tabs', {
-        y: 34,
-        autoAlpha: 0,
-        stagger: 0.12,
-        scrollTrigger: { trigger: '.workspace', start: 'top 78%', once: true }
-      });
-      gsap.from('.dark-note > *', {
-        y: 28,
-        autoAlpha: 0,
-        stagger: 0.1,
-        scrollTrigger: { trigger: '.dark-note', start: 'top 78%', once: true }
-      });
-      gsap.from('.footer-credit', {
-        xPercent: -20,
-        autoAlpha: 0,
-        duration: 1.1,
-        scrollTrigger: { trigger: '.footer-credit', start: 'top 90%', once: true }
-      });
-    }
-
-    const animatePanel = (panel) => {
-      if (!panel) return;
-      gsap.fromTo(panel.querySelectorAll('.section-index, .form-col h3, .lead, .form-col label, .form-col textarea, .form-col select, .form-col .dropzone, .form-col .actions, .output, .result-caption'),
-        { y: 20, autoAlpha: 0 },
-        { y: 0, autoAlpha: 1, duration: 0.55, stagger: 0.035, overwrite: 'auto' }
-      );
-    };
-
-    document.querySelectorAll('#tabs button').forEach((button) => {
-      button.addEventListener('click', () => {
-        window.requestAnimationFrame(() => animatePanel(document.querySelector('#tab-' + button.dataset.tab)));
-      });
-    });
+      .from('.site-header', { y: -12, autoAlpha: 0 })
+      .from('.hero-kicker', { autoAlpha: 0, duration: 0.4 }, '-=0.3')
+      .from('.hero h1', { y: 16, autoAlpha: 0, duration: 0.6 }, '-=0.3')
+      .from('.hero-deck, .hero-aside', { y: 16, autoAlpha: 0, stagger: 0.1 }, '-=0.3')
+      .from('.signal-strip', { y: 16, autoAlpha: 0, duration: 0.5 }, '-=0.2');
   };
 
   const waitForLibraries = () => {

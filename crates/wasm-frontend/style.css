@@ -522,13 +522,13 @@ main {
 
 .hero h1 {
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: clamp(48px, 6.5vw, 68px);
-  letter-spacing: -1.2px;
-  line-height: 1.1;
+  font-weight: 700;
+  font-size: clamp(34px, 4.5vw, 48px);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
   color: var(--color-bright-gray);
-  max-width: 900px;
-  margin-bottom: 32px;
+  max-width: 800px;
+  margin-bottom: 20px;
 }
 
 .hero h1 .serif, .hero h1 .sans {
@@ -543,15 +543,14 @@ main {
 .hero-lower {
   display: grid;
   grid-template-columns: minmax(320px, 1.4fr) 1.2fr;
-  gap: 40px;
+  gap: 36px;
   align-items: center;
-  margin-top: 36px;
+  margin-top: 28px;
 }
 
 .hero-deck {
-  font-size: 18px;
-  line-height: 1.5;
-  letter-spacing: -0.36px;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--color-medium-gray);
   max-width: 480px;
 }
@@ -666,12 +665,12 @@ main {
 }
 
 .workspace-head h2 {
-  font-size: 36px;
-  font-weight: 600;
-  letter-spacing: -0.72px;
-  line-height: 1.2;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
   color: var(--color-bright-gray);
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .workspace-head p {
@@ -802,12 +801,12 @@ main {
 }
 
 .form-col h3 {
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 600;
-  letter-spacing: -0.56px;
-  line-height: 1.25;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
   color: var(--color-bright-gray);
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .form-col h3 em {
@@ -817,9 +816,9 @@ main {
 
 .lead {
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--color-medium-gray);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 label {
@@ -1166,11 +1165,11 @@ button:disabled {
 }
 
 .dark-note h2 {
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.56px;
-  line-height: 1.2;
-  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin-top: 4px;
 }
 
 .dark-note p {
