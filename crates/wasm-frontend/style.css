@@ -55,6 +55,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 body::before {
@@ -461,8 +464,10 @@ a:hover {
 
 main {
   max-width: var(--page-max-width);
+  width: 100%;
   margin: 0 auto;
   padding: 0 24px;
+  flex: 1;
 }
 
 /* ── Hero ────────────────────────────────────────────────────── */
@@ -649,7 +654,7 @@ main {
 /* ── Workspace ───────────────────────────────────────────────── */
 
 .workspace {
-  padding: 16px 0 96px;
+  padding: 16px 0 32px;
 }
 
 .workspace-head {
@@ -657,7 +662,7 @@ main {
   justify-content: space-between;
   gap: 32px;
   align-items: flex-end;
-  margin-bottom: 36px;
+  margin-bottom: 28px;
 }
 
 .workspace-head h2 {
@@ -682,7 +687,7 @@ main {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  margin-bottom: 48px;
+  margin-bottom: 28px;
   background: var(--color-surface);
   border: 1px solid var(--color-graphite);
   box-shadow: var(--shadow-subtle);
@@ -750,21 +755,12 @@ main {
   color: var(--color-muted-gray);
 }
 
-/* ── Tab Panels & Form / Result Cards ────────────────────────── */
-
 .tab-panel {
   display: block;
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.25s ease;
 }
 
 .tab-panel.hidden {
-  display: block !important;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  position: absolute;
+  display: none !important;
 }
 
 .spread {
@@ -772,7 +768,11 @@ main {
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
   gap: 28px;
   align-items: start;
-  margin-bottom: 48px;
+  margin-bottom: 28px;
+}
+
+.spread:last-child {
+  margin-bottom: 0;
 }
 
 .form-col {
@@ -1147,8 +1147,8 @@ button:disabled {
   grid-template-columns: 80px 1.1fr 1fr auto;
   align-items: center;
   gap: 36px;
-  padding: 36px 32px;
-  margin: 48px 0 64px;
+  padding: 28px 32px;
+  margin: 24px 0 36px;
   position: relative;
 }
 
@@ -1184,12 +1184,13 @@ button:disabled {
 footer {
   background: var(--color-abyss);
   border-top: 1px solid var(--color-graphite);
+  margin-top: auto;
 }
 
 .footer-top {
   max-width: var(--page-max-width);
   margin: 0 auto;
-  padding: 28px 24px;
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
