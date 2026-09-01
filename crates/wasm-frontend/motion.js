@@ -1,7 +1,7 @@
 (() => {
   const boot = () => {
-    if (window.__devastatorMotionBooted || !window.gsap) return;
-    window.__devastatorMotionBooted = true;
+    if (window.__specterMotionBooted || !window.gsap) return;
+    window.__specterMotionBooted = true;
     document.documentElement.classList.remove('motion-fallback');
     const { gsap, THREE } = window;
     if (window.ScrollTrigger) gsap.registerPlugin(window.ScrollTrigger);
@@ -110,10 +110,10 @@
 
   const waitForLibraries = () => {
     if (window.gsap) { boot(); return; }
-    if (!window.__devastatorMotionWaits) window.__devastatorMotionWaits = 0;
-    window.__devastatorMotionWaits += 1;
-    if (window.__devastatorMotionWaits === 1) document.documentElement.classList.add('motion-fallback');
-    if (window.__devastatorMotionWaits < 80) window.setTimeout(waitForLibraries, 100);
+    if (!window.__specterMotionWaits) window.__specterMotionWaits = 0;
+    window.__specterMotionWaits += 1;
+    if (window.__specterMotionWaits === 1) document.documentElement.classList.add('motion-fallback');
+    if (window.__specterMotionWaits < 80) window.setTimeout(waitForLibraries, 100);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', waitForLibraries, { once: true });
   else waitForLibraries();

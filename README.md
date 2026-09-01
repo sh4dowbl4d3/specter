@@ -1,25 +1,25 @@
-# Devastator — Browser-Native Cryptanalysis & Cyber Toolkit
+# Specter — Browser-Native Cryptanalysis & Cyber Toolkit
 
-[![Build & Deploy](https://github.com/sh4dowbl4d3/devastator/actions/workflows/deploy.yml/badge.svg)](https://github.com/sh4dowbl4d3/devastator/actions/workflows/deploy.yml)
+[![Build & Deploy](https://github.com/sh4dowbl4d3/specter/actions/workflows/deploy.yml/badge.svg)](https://github.com/sh4dowbl4d3/specter/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust: 2021](https://img.shields.io/badge/Rust-2021_Edition-orange.svg)](https://www.rust-lang.org/)
 [![WebAssembly](https://img.shields.io/badge/Compute-WebAssembly-654FF0.svg)](https://webassembly.org/)
 [![Zero Telemetry](https://img.shields.io/badge/Privacy-Zero_Telemetry-2bee4b.svg)](#privacy--security-architecture)
 
-> **Devastator** is a fast, offline-first, client-side cybersecurity toolkit built with **Rust + WebAssembly**. It provides cryptographic hash identification, multi-algorithm checksum generation, dictionary & bounded brute-force hash cracking, classical cipher codecs & statistical heuristic detection, and file forensics — running **100% inside your browser** with zero external network requests.
+> **Specter** is a fast, offline-first, client-side cybersecurity toolkit built with **Rust + WebAssembly**. It provides cryptographic hash identification, multi-algorithm checksum generation, dictionary & bounded brute-force hash cracking, classical cipher codecs & statistical heuristic detection, and file forensics — running **100% inside your browser** with zero external network requests.
 
 ---
 
 ## ⚡ Live Workbench
 
 Access the live desk deployed directly on GitHub Pages:
-🔗 **`https://sh4dowbl4d3.github.io/devastator/`**
+🔗 **`https://sh4dowbl4d3.github.io/specter/`**
 
 ---
 
 ## 🧭 Toolkit Instruments
 
-Devastator is organized into four primary workbench desks:
+Specter is organized into four primary workbench desks:
 
 ### 1. Hash Identification & Generation Desk (`#tab-identify`)
 - **Format Heuristic Identification**: Evaluates digest length, alphabet patterns, and signatures against known cryptographic hash families (MD5, SHA-1, SHA-224/256/384/512, SHA-3 family, bcrypt, NTLM, MySQL <4.1, MySQL 4.1+, RIPEMD-160) with confidence scoring and Hashcat/John attack mode guidance.
@@ -50,7 +50,7 @@ Devastator is organized into four primary workbench desks:
 
 ## 🔒 Privacy & Security Architecture
 
-Devastator follows a strict **zero-telemetry, zero-persistence** security model:
+Specter follows a strict **zero-telemetry, zero-persistence** security model:
 
 1. **100% In-Browser Computation**: All cryptography, hash generation, cracking loops, and cipher transforms run in WebAssembly on the host CPU.
 2. **Zero Server Requests**: No inputs, hashes, plaintext, wordlists, or uploaded files are ever transmitted to any remote server.
@@ -78,7 +78,7 @@ Devastator follows a strict **zero-telemetry, zero-persistence** security model:
 The workspace strictly decouples pure algorithmic logic from browser DOM interactions:
 
 ```
-devastator/
+specter/
 ├── Cargo.toml                       # Workspace configuration & release profile
 ├── Cargo.lock
 ├── README.md                        # Documentation
@@ -86,7 +86,7 @@ devastator/
 ├── LICENSE                          # MIT license
 │
 ├── crates/
-│   ├── core/                        # devastator-core: Pure Rust algorithm library
+│   ├── core/                        # specter-core: Pure Rust algorithm library
 │   │   ├── Cargo.toml               # md5, sha1, sha2, md4, base64, hex, serde
 │   │   ├── src/
 │   │   │   ├── lib.rs               # Module exports
@@ -158,7 +158,7 @@ Distribution artifacts will be generated in `crates/wasm-frontend/dist/`.
 
 ## 🧪 Quality Gates & Testing
 
-Devastator maintains strict testing and linting standards:
+Specter maintains strict testing and linting standards:
 
 ```bash
 # Run all unit and integration tests (125 tests)

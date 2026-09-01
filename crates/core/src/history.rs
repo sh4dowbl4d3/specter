@@ -186,7 +186,7 @@ impl SessionHistory {
     /// Export the session history as a structured Markdown audit log.
     #[must_use]
     pub fn export_markdown(&self) -> String {
-        let mut md = String::from("# Devastator Session Audit Log\n\n");
+        let mut md = String::from("# Specter Session Audit Log\n\n");
         md.push_str("> Generated locally in browser. No remote logging or server telemetry.\n\n");
         md.push_str(&format!("Total Operations: **{}**\n\n---\n\n", self.len()));
 
@@ -330,7 +330,7 @@ mod tests {
         ));
 
         let md = history.export_markdown();
-        assert!(md.contains("# Devastator Session Audit Log"));
+        assert!(md.contains("# Specter Session Audit Log"));
         assert!(md.contains("[CIPHER] Base64 Encode"));
         assert!(md.contains("aGVsbG8gd29ybGQ="));
     }

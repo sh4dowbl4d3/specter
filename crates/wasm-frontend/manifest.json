@@ -1,6 +1,6 @@
 {
-  "name": "devastator — private cryptanalysis desk",
-  "short_name": "devastator",
+  "name": "specter — private cryptanalysis desk",
+  "short_name": "specter",
   "description": "Private, browser-native cybersecurity cryptanalysis toolkit for hash identification, cracking, and ciphers.",
   "start_url": "./",
   "display": "standalone",
@@ -8,7 +8,7 @@
   "theme_color": "#171717",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23171717'/%3E%3Cpath d='M7 7h18v4H11v4h10v4H11v6H7z' fill='%237c3aed'/%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23171717'/%3E%3Cpath d='M8 7h16v5h-11v2h11v11H8v-5h11v-2H8z' fill='%237c3aed'/%3E%3C/svg%3E",
       "sizes": "any",
       "type": "image/svg+xml"
     }

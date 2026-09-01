@@ -921,7 +921,7 @@ mod tests {
 
     #[test]
     fn test_reverse_text() {
-        assert_eq!(reverse_text("Devastator"), "rotatsaveD");
+        assert_eq!(reverse_text("Specter"), "retcepS");
         assert_eq!(reverse_text(&reverse_text("hello")), "hello");
     }
 

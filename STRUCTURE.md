@@ -1,4 +1,4 @@
-# Project Structure — devastator
+# Project Structure — specter
 
 A browser-based toolkit for hash identification, checksum calculation, dictionary & brute-force hash cracking, classical cipher encoding/decoding/detection, file forensics, and session auditing. Everything runs **client-side in WebAssembly** — there is no server.
 
@@ -16,7 +16,7 @@ A browser-based toolkit for hash identification, checksum calculation, dictionar
 │    ├── Ephemeral session history & privacy wipe             │
 │    └── calls into ▼                                         │
 │                                                             │
-│  devastator-core (pure Rust algorithm library)              │
+│  specter-core (pure Rust algorithm library)                 │
 │    ├── hash_id      — hash type heuristics & rankings       │
 │    ├── hasher       — single/multi-hash & chunked streaming │
 │    ├── cracker      — dictionary & batched brute-force      │
@@ -32,7 +32,7 @@ The architectural boundary: **all algorithms live in `crates/core`**, a pure-Rus
 ## Repository Layout
 
 ```
-devastator/
+specter/
 ├── Cargo.toml                       # Workspace root & release optimizations
 ├── Cargo.lock
 ├── README.md                        # User-facing manual & quick start
@@ -41,7 +41,7 @@ devastator/
 ├── .gitignore
 │
 ├── crates/
-│   ├── core/                        # devastator-core — pure algorithm crate
+│   ├── core/                        # specter-core — pure algorithm crate
 │   │   ├── Cargo.toml               # md5, sha1, sha2, md4, base64, hex, serde
 │   │   ├── src/
 │   │   │   ├── lib.rs               # Re-exports core modules
@@ -98,46 +98,19 @@ Cryptographic digest calculation engine.
 - `compute_hash` / `compute_hash_text`: Computes individual digests.
 - `compute_all_hashes` / `compute_all_hashes_text`: Computes all 9 supported algorithms in a single pass.
 - `compare_hashes`: Normalizes and compares two hash digests.
-- `IncrementalHasher`: Chunked streaming buffer for memory-efficient hashing of large payloads.
+- `IncrementalHasher`: Streaming chunk processor for files.
 
 ### `cracker`
-Two cracking engines:
-- **Dictionary** (`dictionary.rs`): Streaming candidate verification across MD5, SHA-1/2, NTLM, and MySQL formats against wordlists.
-- **Brute Force** (`brute_force.rs`): Step-based non-blocking keyspace search (`BruteForceSession`) yielding to the browser event loop, with search space estimations and a 20M attempt safety cap.
+Hash cracking implementations.
+- `dictionary`: Iterates candidate lists, hashes each according to the target algorithm, and returns the match.
+- `brute_force`: State-machine `BruteForceSession` that tests character combinations incrementally with configurable character sets (`lowerdigit`, `lower`, `alnum`) and max length caps up to 20,000,000 attempts.
 
 ### `cipher_tools`
-- **Codecs** (`ciphers.rs`): Base64, Hexadecimal, Binary, ASCII Decimal, URL encoding, Caesar (all shifts), ROT13, Atbash, Vigenère, Affine, Bacon, Morse Code, Rail Fence, XOR streaming, and chained `TransformationPipeline`.
-- **Heuristic Detector** (`detector.rs`): Scores cipher candidates using Shannon entropy, charset distributions, English quadgrams, and dictionary decodability ranking.
+Ciphers, encodings, and statistical detection.
+- `ciphers`: Pure-Rust implementations of classical ciphers (Caesar with brute-force, ROT13, Atbash, Vigenère, Affine, Bacon, Morse, Rail Fence, XOR) and encodings (Base64, Hex, Binary, ASCII Decimal, URL), with pipeline support.
+- `detector`: Statistical analyzer calculating Shannon entropy, character set distribution, quadgram scoring, and format patterns to rank candidate ciphers.
 
 ### `history`
-- **In-Memory Buffer** (`history.rs`): Thread-safe, bounded ring buffer storing recent operations (`HistoryEntry`).
-- **Exporters**: Client-side Markdown audit report generator (`export_markdown()`) and formatted JSON log generator (`export_json()`).
-
----
-
-## The Frontend Crate (`crates/wasm-frontend`)
-
-Single-crate WebAssembly client compiled with [Trunk](https://trunkrs.dev/):
-- **DOM Architecture**: `index.html` statically defines the layout, tab panels, and drawer modal.
-- **Event Wiring**: `src/lib.rs` initializes listeners, handles tab switching, manages clipboard copy actions, registers global keyboard shortcuts, and orchestrates async cracking steps.
-- **Memory Wipe**: Dedicated routine purges `SESSION_HISTORY` and resets all UI controls.
-- **SPA 404 Routing**: `404.html` fallback preserves routes and parameters on GitHub Pages.
-
----
-
-## Build & Quality Gates
-
-```bash
-# Host tests across all crates (125 tests)
-cargo test --workspace --all-targets
-
-# WASM target check
-cargo check -p wasm-frontend --target wasm32-unknown-unknown
-
-# Linter & formatting checks
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-
-# Release build
-cd crates/wasm-frontend && trunk build --release --public-url "./"
-```
+Session audit log.
+- `SessionHistory`: Bounded RAM ring buffer (capacity 100) storing `HistoryEntry` records.
+- Export capabilities to formatted JSON and structured Markdown documents.

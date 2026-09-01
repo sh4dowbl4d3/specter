@@ -3,13 +3,13 @@ use std::rc::Rc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
-use devastator_core::cipher_tools::ciphers::*;
-use devastator_core::cipher_tools::detect_cipher;
-use devastator_core::cracker::brute_force::*;
-use devastator_core::cracker::dictionary::*;
-use devastator_core::hash_id::*;
-use devastator_core::history::{NewHistoryEntry, OperationType, SessionHistory};
 use js_sys::Uint8Array;
+use specter_core::cipher_tools::ciphers::*;
+use specter_core::cipher_tools::detect_cipher;
+use specter_core::cracker::brute_force::*;
+use specter_core::cracker::dictionary::*;
+use specter_core::hash_id::*;
+use specter_core::history::{NewHistoryEntry, OperationType, SessionHistory};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{spawn_local, JsFuture};
@@ -505,7 +505,7 @@ fn setup_history_drawer() {
         let json_res = SESSION_HISTORY.with(|h| h.borrow().export_json());
         match json_res {
             Ok(json_str) => {
-                download_file("devastator-session-audit.json", &json_str);
+                download_file("specter-session-audit.json", &json_str);
                 toast("Session log exported as JSON");
             }
             Err(e) => toast_error(&format!("Export error: {e}")),
@@ -514,7 +514,7 @@ fn setup_history_drawer() {
 
     click_handler("history-export-md-btn", || {
         let md_str = SESSION_HISTORY.with(|h| h.borrow().export_markdown());
-        download_file("devastator-session-audit.md", &md_str);
+        download_file("specter-session-audit.md", &md_str);
         toast("Session log exported as Markdown");
     });
 }
@@ -961,7 +961,7 @@ fn setup_text_hashing() {
         }
         let algo_id = val("th-algo");
         if algo_id == "all" {
-            let res = devastator_core::hasher::compute_all_hashes_text(&input);
+            let res = specter_core::hasher::compute_all_hashes_text(&input);
             let json = serde_json::to_string_pretty(&res).unwrap_or_default();
             set_output_status("th-output", "ready", "complete");
             text("th-output-body", &json);
@@ -974,9 +974,9 @@ fn setup_text_hashing() {
                 true,
             );
         } else {
-            let algo = devastator_core::hasher::HashAlgorithm::from_id(&algo_id)
-                .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
-            let res = devastator_core::hasher::compute_hash_text(algo, &input);
+            let algo = specter_core::hasher::HashAlgorithm::from_id(&algo_id)
+                .unwrap_or(specter_core::hasher::HashAlgorithm::Sha256);
+            let res = specter_core::hasher::compute_hash_text(algo, &input);
             let json = serde_json::to_string_pretty(&res).unwrap_or_default();
             set_output_status("th-output", "ready", "complete");
             text("th-output-body", &json);
@@ -998,7 +998,7 @@ fn setup_text_hashing() {
             text("th-output-body", "Enter text to hash first");
             return;
         }
-        let res = devastator_core::hasher::compute_all_hashes_text(&input);
+        let res = specter_core::hasher::compute_all_hashes_text(&input);
         let json = serde_json::to_string_pretty(&res).unwrap_or_default();
         set_output_status("th-output", "ready", "complete");
         text("th-output-body", &json);
@@ -1022,7 +1022,7 @@ fn setup_hash_comparison() {
             text("cmp-output-body", "Enter two hashes to compare.");
             return;
         }
-        let res = devastator_core::hasher::compare_hashes(&a, &b);
+        let res = specter_core::hasher::compare_hashes(&a, &b);
         if res.matches {
             set_output_status("cmp-output", "ready", "match");
         } else {
@@ -1548,7 +1548,7 @@ fn setup_file_tools() {
                     move |bytes| {
                         update_progress_msg("fi", "Computing hash digest...");
                         let out = if algo == "all" {
-                            let digests = devastator_core::hasher::compute_all_hashes(&bytes);
+                            let digests = specter_core::hasher::compute_all_hashes(&bytes);
                             serde_json::to_string_pretty(&serde_json::json!({
                                 "mode": "multi-hash",
                                 "byte_length": bytes.len(),
@@ -1556,9 +1556,9 @@ fn setup_file_tools() {
                             }))
                             .unwrap_or_default()
                         } else {
-                            let hash_algo = devastator_core::hasher::HashAlgorithm::from_id(&algo)
-                                .unwrap_or(devastator_core::hasher::HashAlgorithm::Sha256);
-                            let hash = devastator_core::hasher::compute_hash(hash_algo, &bytes);
+                            let hash_algo = specter_core::hasher::HashAlgorithm::from_id(&algo)
+                                .unwrap_or(specter_core::hasher::HashAlgorithm::Sha256);
+                            let hash = specter_core::hasher::compute_hash(hash_algo, &bytes);
                             serde_json::to_string_pretty(&serde_json::json!({
                                 "algorithm": hash_algo.name(),
                                 "algorithm_id": hash_algo.id_str(),

@@ -1,9 +1,9 @@
-use devastator_core::cipher_tools::ciphers::*;
-use devastator_core::cipher_tools::detect_cipher;
-use devastator_core::cracker::brute_force::*;
-use devastator_core::cracker::dictionary::*;
-use devastator_core::hash_id::*;
-use devastator_core::hasher::*;
+use specter_core::cipher_tools::ciphers::*;
+use specter_core::cipher_tools::detect_cipher;
+use specter_core::cracker::brute_force::*;
+use specter_core::cracker::dictionary::*;
+use specter_core::hash_id::*;
+use specter_core::hasher::*;
 
 // ── Hash identification tests ─────────────────────────────────
 
@@ -412,7 +412,7 @@ fn bacon_cipher_roundtrip_integration() {
 #[test]
 fn xor_multi_byte_roundtrip_integration() {
     let plain = "Confidential browser-based crypto suite";
-    let key = "DevastatorSecretKey";
+    let key = "SpecterSecretKey";
     let hex_cipher = xor_text_to_hex(plain, key).unwrap();
     let decrypted = xor_hex_to_text(&hex_cipher, key).unwrap();
     assert_eq!(decrypted, plain);
@@ -420,7 +420,7 @@ fn xor_multi_byte_roundtrip_integration() {
 
 #[test]
 fn chained_pipeline_transformation_integration() {
-    let initial = "Devastator WASM Suite";
+    let initial = "Specter WASM Suite";
     let pipeline = vec![
         TransformStep::UrlEncode,
         TransformStep::Base64Encode,
@@ -496,7 +496,7 @@ fn compute_hash_all_algorithms_against_known_vectors() {
 
 #[test]
 fn compute_all_hashes_matches_individual_computations() {
-    let data = b"Devastator Cybersecurity Web Toolkit 2026";
+    let data = b"Specter Cybersecurity Web Toolkit 2026";
     let multi = compute_all_hashes(data);
     assert_eq!(multi.len(), HashAlgorithm::all().len());
 

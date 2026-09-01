@@ -59,21 +59,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "devastator-core"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "md4",
- "md5",
- "serde",
- "serde_json",
- "sha1",
- "sha2",
- "thiserror",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -275,6 +260,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
+name = "specter-core"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "md4",
+ "md5",
+ "serde",
+ "serde_json",
+ "sha1",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.119"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -394,9 +394,9 @@ name = "wasm-frontend"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
- "devastator-core",
  "js-sys",
  "serde_json",
+ "specter-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
