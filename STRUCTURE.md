@@ -1,156 +1,143 @@
 # Project Structure — devastator
 
-A browser-based toolkit for hash identification, hash cracking, and classical cipher
-encode/decode/detect. Everything runs **client-side in WebAssembly** — there is no server.
-This document explains how the repository is laid out and how the pieces fit together.
+A browser-based toolkit for hash identification, checksum calculation, dictionary & brute-force hash cracking, classical cipher encoding/decoding/detection, file forensics, and session auditing. Everything runs **client-side in WebAssembly** — there is no server.
+
+---
 
 ## High-Level Architecture
 
 ```
-┌───────────────────────────────────────────────┐
-│                Browser (WASM)                 │
-│                                               │
-│  wasm-frontend (Rust → WASM via Trunk)        │
-│    ├── UI: DOM building, tabs, events         │
-│    ├── File handling: upload / drag & drop    │
-│    └── calls into ▼                           │
-│                                               │
-│  devastator-core (pure Rust library)          │
-│    ├── hash_id      — hash type detection     │
-│    ├── cracker      — dictionary + brute force│
-│    └── cipher_tools — ciphers + detection     │
-└───────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                       Browser (WASM)                        │
+│                                                             │
+│  wasm-frontend (Rust → WASM via Trunk + wasm-bindgen)       │
+│    ├── UI: DOM building, tabs, keyboard shortcuts, toasts   │
+│    ├── File handling: upload / drag & drop / streaming read │
+│    ├── Ephemeral session history & privacy wipe             │
+│    └── calls into ▼                                         │
+│                                                             │
+│  devastator-core (pure Rust algorithm library)              │
+│    ├── hash_id      — hash type heuristics & rankings       │
+│    ├── hasher       — single/multi-hash & chunked streaming │
+│    ├── cracker      — dictionary & batched brute-force      │
+│    ├── cipher_tools — codecs, heuristics & pipeline engine  │
+│    └── history      — bounded RAM session buffer & exporter │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-The key design split: **all algorithms live in `crates/core`**, a pure-Rust crate with no
-DOM access, no I/O, and no threading constraints beyond what WASM allows. The frontend
-crate (`crates/wasm-frontend`) only wires that logic up to the DOM via `wasm-bindgen`.
-This keeps the algorithms testable with plain `cargo test` on the host.
+The architectural boundary: **all algorithms live in `crates/core`**, a pure-Rust crate with no DOM dependencies, no network I/O, and no threading constraints beyond standard WASM capabilities. The frontend crate (`crates/wasm-frontend`) wires that logic to the DOM via `wasm-bindgen` and `web-sys`. This architecture ensures all algorithms are unit-tested and benchmarked on the host with standard `cargo test`.
+
+---
 
 ## Repository Layout
 
 ```
 devastator/
-├── Cargo.toml                  # Workspace root (members + release profile)
+├── Cargo.toml                       # Workspace root & release optimizations
 ├── Cargo.lock
-├── README.md                   # User-facing docs (usage, build, deploy)
-├── LICENSE
+├── README.md                        # User-facing manual & quick start
+├── STRUCTURE.md                     # Architectural documentation
+├── LICENSE                          # MIT license
 ├── .gitignore
 │
 ├── crates/
-│   ├── core/                   # devastator-core — pure algorithm library
-│   │   ├── Cargo.toml          # serde, thiserror, md5/sha1/sha2/md4, base64, hex
+│   ├── core/                        # devastator-core — pure algorithm crate
+│   │   ├── Cargo.toml               # md5, sha1, sha2, md4, base64, hex, serde
 │   │   ├── src/
-│   │   │   ├── lib.rs          # Re-exports the three modules below
-│   │   │   ├── hash_id/
+│   │   │   ├── lib.rs               # Re-exports core modules
+│   │   │   ├── hash_id/             # Hash type heuristics & attack mode mapping
 │   │   │   │   ├── mod.rs
-│   │   │   │   └── identifier.rs   # HashType enum + identify() heuristics
-│   │   │   ├── cracker/
+│   │   │   │   └── identifier.rs    # HashType enum, identify() heuristics
+│   │   │   ├── hasher/              # Cryptographic hash generator & streaming
 │   │   │   │   ├── mod.rs
-│   │   │   │   ├── dictionary.rs   # crack_from_list() + hash_* helpers
-│   │   │   │   └── brute_force.rs  # BruteForceConfig/Result + brute_force_crack()
-│   │   │   └── cipher_tools/
-│   │   │       ├── mod.rs
-│   │   │       ├── ciphers.rs      # encode/decode for each cipher
-│   │   │       ├── detector.rs     # detect_cipher() scoring engine
-│   │   │       └── error.rs        # CipherError type
+│   │   │   │   ├── algorithms.rs    # HashAlgorithm enum & compute functions
+│   │   │   │   └── streaming.rs     # Chunked IncrementalHasher
+│   │   │   ├── cracker/             # Cracking engines
+│   │   │   │   ├── mod.rs
+│   │   │   │   ├── dictionary.rs    # Streaming crack_from_list()
+│   │   │   │   └── brute_force.rs   # Step-based BruteForceSession & budget caps
+│   │   │   ├── cipher_tools/        # Classical ciphers & detection
+│   │   │   │   ├── mod.rs
+│   │   │   │   ├── ciphers.rs       # Caesar, ROT13, Atbash, Base64, Hex, Binary,
+│   │   │   │   │                    # Vigenere, Affine, Bacon, Morse, Rail Fence,
+│   │   │   │   │                    # URL, Decimal, XOR & Pipeline execution
+│   │   │   │   ├── detector.rs      # Entropy, quadgrams & scoring heuristics
+│   │   │   │   └── error.rs         # CipherError type
+│   │   │   └── history/             # Ephemeral in-memory session audit log
+│   │   │       └── mod.rs           # SessionHistory, HistoryEntry, Markdown/JSON export
 │   │   └── tests/
-│   │       └── integration.rs      # Cross-module integration tests
+│   │       └── integration.rs       # Cross-module integration tests (42 tests)
 │   │
-│   └── wasm-frontend/          # wasm-frontend — browser UI (cdylib)
-│       ├── Cargo.toml          # wasm-bindgen, web-sys, js-sys; depends on core
-│       ├── Trunk.toml          # Trunk build config
-│       ├── index.html          # App shell (all sections/tabs defined statically)
-│       ├── style.css           # Styling
-│       ├── motion.js           # Small JS helper for animations
+│   └── wasm-frontend/               # wasm-frontend — browser UI (cdylib)
+│       ├── Cargo.toml               # wasm-bindgen, web-sys, js-sys; depends on core
+│       ├── Trunk.toml               # Trunk build & asset copy configuration
+│       ├── index.html               # App shell (static panels, header, drawer, ARIA)
+│       ├── 404.html                 # SPA fallback redirector for GitHub Pages
+│       ├── manifest.json            # Web App Manifest (PWA metadata)
+│       ├── style.css                # Visual design system, drawer & animations
+│       ├── motion.js                # Three.js canvas & GSAP scroll interactions
 │       └── src/
-│           └── lib.rs          # #[wasm_bindgen(start)] entry point + all UI wiring
+│           └── lib.rs               # #[wasm_bindgen(start)] entry point & UI handlers
 │
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml          # CI: fmt/clippy/test/audit → trunk build → GitHub Pages
+│       └── deploy.yml               # CI/CD: Quality gates, security audit & Pages deploy
 │
-└── wordlists/                  # Dictionary files (large ones gitignored)
+└── wordlists/                       # Dictionary files (large files gitignored)
 ```
+
+---
 
 ## The Core Crate (`crates/core`)
 
-Three modules, re-exported from `src/lib.rs`:
-
 ### `hash_id`
-Format-heuristic hash identification. `HashType` enumerates known types (MD5, SHA-1,
-SHA-2 family, SHA-3 family, bcrypt, NTLM, MySQL, RIPEMD-160); `identify(input)` scores an
-input string by length and charset patterns and returns ranked `Identification` candidates.
-Detection-only — it never attempts to crack anything.
+Format-heuristic hash identification. `HashType` enumerates known types (MD5, SHA-1, SHA-224/256/384/512, SHA-3 family, bcrypt, NTLM, MySQL <4.1, MySQL 4.1+, RIPEMD-160). `identify(input)` scores strings by length and character patterns, returning ranked `Identification` candidates with attack guidance.
+
+### `hasher`
+Cryptographic digest calculation engine.
+- `compute_hash` / `compute_hash_text`: Computes individual digests.
+- `compute_all_hashes` / `compute_all_hashes_text`: Computes all 9 supported algorithms in a single pass.
+- `compare_hashes`: Normalizes and compares two hash digests.
+- `IncrementalHasher`: Chunked streaming buffer for memory-efficient hashing of large payloads.
 
 ### `cracker`
-Two engines:
-
-- **Dictionary** (`dictionary.rs`) — `crack_from_list(hash, wordlist)` hashes candidate
-  words and compares against the target. Implements hashing for MD5, SHA-1/224/256/384/512,
-  NTLM (MD4 of UTF-16LE), MySQL <4.1 and MySQL 4.1+ formats. The `hash_*` functions are
-  also used by the file-hashing feature.
-- **Brute force** (`brute_force.rs`) — bounded exhaustive search over a configurable
-  charset/length range (`BruteForceConfig` → `BruteForceResult`). Hard-capped so a browser
-  tab can't hang indefinitely (~20M attempts max).
+Two cracking engines:
+- **Dictionary** (`dictionary.rs`): Streaming candidate verification across MD5, SHA-1/2, NTLM, and MySQL formats against wordlists.
+- **Brute Force** (`brute_force.rs`): Step-based non-blocking keyspace search (`BruteForceSession`) yielding to the browser event loop, with search space estimations and a 20M attempt safety cap.
 
 ### `cipher_tools`
-- `ciphers.rs` — encode/decode implementations: Caesar (plus full-shift brute force),
-  ROT13, Atbash, Base64, Hex, Binary, Vigenère.
-- `detector.rs` — `detect_cipher(input)` returns scored `CipherDetection` candidates based
-  on statistical properties of the input (charset shape, entropy signals, decodability).
-- `error.rs` — `CipherError`, used by the lossy decode paths (Base64/Hex/Binary).
+- **Codecs** (`ciphers.rs`): Base64, Hexadecimal, Binary, ASCII Decimal, URL encoding, Caesar (all shifts), ROT13, Atbash, Vigenère, Affine, Bacon, Morse Code, Rail Fence, XOR streaming, and chained `TransformationPipeline`.
+- **Heuristic Detector** (`detector.rs`): Scores cipher candidates using Shannon entropy, charset distributions, English quadgrams, and dictionary decodability ranking.
 
-Integration tests live in `tests/integration.rs` and exercise the modules together
-(e.g., identify → crack round-trips, encode → detect → decode).
+### `history`
+- **In-Memory Buffer** (`history.rs`): Thread-safe, bounded ring buffer storing recent operations (`HistoryEntry`).
+- **Exporters**: Client-side Markdown audit report generator (`export_markdown()`) and formatted JSON log generator (`export_json()`).
+
+---
 
 ## The Frontend Crate (`crates/wasm-frontend`)
 
-A single-crate WASM app built with [Trunk](https://trunkrs.dev):
+Single-crate WebAssembly client compiled with [Trunk](https://trunkrs.dev/):
+- **DOM Architecture**: `index.html` statically defines the layout, tab panels, and drawer modal.
+- **Event Wiring**: `src/lib.rs` initializes listeners, handles tab switching, manages clipboard copy actions, registers global keyboard shortcuts, and orchestrates async cracking steps.
+- **Memory Wipe**: Dedicated routine purges `SESSION_HISTORY` and resets all UI controls.
+- **SPA 404 Routing**: `404.html` fallback preserves routes and parameters on GitHub Pages.
 
-- `index.html` is the static shell — all tabs/panels/buttons exist as DOM elements;
-  the Rust code never creates top-level layout, it only fills and toggles them.
-- `src/lib.rs` is the whole application:
-  - A `#[wasm_bindgen(start)]` function runs on load: installs the panic hook, then wires
-    up tabs, copy buttons, keyboard shortcuts, and one setup function per feature area
-    (`setup_hash_identify`, `setup_crack`, `setup_cipher_tools`, `setup_file_tools`).
-  - Small DOM helpers (`el`, `val`, `text`, `show`/`hide`, `toast`) keep the web-sys
-    boilerplate readable.
-  - `thread_local!` cells hold session state: the loaded wordlist and pending files for
-    hash/cipher file uploads.
-  - Feature areas map 1:1 onto core modules: hash identification, cracking (paste or
-    upload wordlist), cipher tools, and file hashing/transforms (64 MiB cap).
+---
 
-There is no framework and no virtual DOM — direct `web_sys` manipulation throughout.
-
-## Build & Toolchain
+## Build & Quality Gates
 
 ```bash
-cargo install trunk
-rustup target add wasm32-unknown-unknown
-
-# Dev server with hot reload
-cd crates/wasm-frontend && trunk serve --port 8080
-
-# Release build
-trunk build --release            # add --public-url "./" for Pages-style subpaths
-
-# Tests & quality gates (run on the host target, no WASM needed)
+# Host tests across all crates (125 tests)
 cargo test --workspace --all-targets
+
+# WASM target check
+cargo check -p wasm-frontend --target wasm32-unknown-unknown
+
+# Linter & formatting checks
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
+
+# Release build
+cd crates/wasm-frontend && trunk build --release --public-url "./"
 ```
-
-The workspace release profile enables `lto = true`, `codegen-units = 1`,
-`panic = "abort"`, and `strip = true` to keep the shipped WASM binary small and fast.
-
-## CI / Deployment
-
-`.github/workflows/deploy.yml` runs on every push to `main` (and PRs):
-
-1. fmt check → clippy `-D warnings` → tests → `cargo audit`
-2. `trunk build --release --public-url "./"`
-3. Uploads `crates/wasm-frontend/dist` and deploys to **GitHub Pages**
-
-So the deployed site is fully static — one HTML page, one WASM blob, CSS, and a small JS
-helper served from Pages.
