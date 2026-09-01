@@ -16,9 +16,6 @@ wordlists/*.gz
 .vscode/
 .idea/
 
-# Claude Code local config
-.claude/
-
 # OS
 .DS_Store
 Thumbs.db
