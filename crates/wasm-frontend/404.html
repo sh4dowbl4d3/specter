@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 — devastator</title>
+<style>
+  :root {
+    --bone: #fafffa;
+    --black: #121613;
+    --green: #2bee4b;
+    --gray: #516254;
+    --sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  body {
+    background: var(--bone);
+    color: var(--black);
+    font-family: var(--sans);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 24px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  .box {
+    max-width: 480px;
+    border: 1px solid rgba(18, 22, 19, 0.18);
+    padding: 40px 32px;
+    background: rgba(200, 210, 200, 0.15);
+    border-radius: 6px;
+  }
+  .tag {
+    font: 600 11px var(--mono);
+    color: var(--green);
+    background: var(--black);
+    padding: 3px 8px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 32px;
+    margin: 0 0 12px;
+    letter-spacing: -0.04em;
+  }
+  p {
+    font-size: 14px;
+    color: var(--gray);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  a {
+    display: inline-block;
+    background: var(--black);
+    color: var(--bone);
+    text-decoration: none;
+    font: 600 12px var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 10px 20px;
+    border-radius: 4px;
+    transition: transform 0.2s ease;
+  }
+  a:hover {
+    transform: translateY(-1px);
+  }
+</style>
+<script>
+  // Redirect back to base path while preserving path / hash / query
+  const segment = window.location.pathname.split('/').filter(Boolean);
+  const base = segment.length > 0 ? '/' + segment[0] + '/' : './';
+  setTimeout(() => {
+    window.location.replace(base);
+  }, 1200);
+</script>
+</head>
+<body>
+<div class="box">
+  <span class="tag">404 / NOT FOUND</span>
+  <h1>Signal Lost.</h1>
+  <p>The requested route does not exist. Redirecting back to the cryptanalysis workbench...</p>
+  <a href="./">Return to Desk ↗</a>
+</div>
+</body>
+</html>

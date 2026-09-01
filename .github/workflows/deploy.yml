@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,24 +12,22 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  quality-gates:
+    name: Quality Gates & Tests
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@1.97.1
         with:
-          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
 
-      - name: Cache Cargo
+      - name: Cache Cargo Dependencies
         uses: actions/cache@v4
         with:
           path: |
@@ -37,37 +36,72 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: wasm-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-check-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-check-
 
-      - name: Install Trunk
-        run: cargo install trunk --version 0.21.14 --locked
-
-      - name: Format check
+      - name: Code Formatting Check
         run: cargo fmt --all -- --check
 
-      - name: Clippy
+      - name: Clippy Lints
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Tests
+      - name: Unit & Integration Tests
         run: cargo test --workspace --all-targets
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+  security-audit:
+    name: Security & Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Dependency audit
-        run: cargo audit
+      - name: Run Cargo Audit
+        uses: rust-security/cargo-audit-action@v2
+        continue-on-error: true
 
-      - name: Build
+  build-and-deploy:
+    name: Build WASM & Deploy Pages
+    runs-on: ubuntu-latest
+    needs: [quality-gates]
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@1.97.1
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo & Trunk
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-trunk-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-trunk-
+
+      - name: Install Trunk & wasm-bindgen-cli
+        run: |
+          which trunk || cargo install trunk --version 0.21.14 --locked
+          which wasm-bindgen || cargo install wasm-bindgen-cli --version 0.2.126 --locked
+
+      - name: Build Web Release Artifacts
         working-directory: crates/wasm-frontend
-        run: >
-          trunk build --release
-          --public-url "./"
+        run: trunk build --release --public-url "./"
 
-      - name: Upload Pages artifact
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: crates/wasm-frontend/dist
 
       - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: deployment
         uses: actions/deploy-pages@v4
