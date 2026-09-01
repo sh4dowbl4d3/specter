@@ -22,8 +22,8 @@
       const count = 520;
       const positions = new Float32Array(count * 3);
       const colors = new Float32Array(count * 3);
-      const green = new THREE.Color('#2bee4b');
-      const sage = new THREE.Color('#93b799');
+      const amethyst = new THREE.Color('#7c3aed');
+      const lavender = new THREE.Color('#a78bfa');
 
       for (let i = 0; i < count; i += 1) {
         const angle = i * 0.43;
@@ -32,7 +32,7 @@
         positions[i * 3] = Math.cos(angle) * radius;
         positions[i * 3 + 1] = y + Math.sin(angle * 0.7) * 0.32;
         positions[i * 3 + 2] = Math.sin(angle) * radius * 0.52;
-        const c = i % 5 === 0 ? green : sage;
+        const c = i % 4 === 0 ? amethyst : lavender;
         colors[i * 3] = c.r;
         colors[i * 3 + 1] = c.g;
         colors[i * 3 + 2] = c.b;
@@ -42,10 +42,10 @@
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       const material = new THREE.PointsMaterial({
-        size: 0.025,
+        size: 0.026,
         vertexColors: true,
         transparent: true,
-        opacity: 0.76,
+        opacity: 0.85,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
@@ -54,7 +54,7 @@
 
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(2.08, 0.008, 8, 100),
-        new THREE.MeshBasicMaterial({ color: 0x2bee4b, transparent: true, opacity: 0.22 })
+        new THREE.MeshBasicMaterial({ color: 0x7c3aed, transparent: true, opacity: 0.35 })
       );
       ring.rotation.x = Math.PI * 0.45;
       ring.rotation.y = Math.PI * 0.14;

@@ -6,17 +6,22 @@
 <title>404 — devastator</title>
 <style>
   :root {
-    --bone: #fafffa;
-    --black: #121613;
-    --green: #2bee4b;
-    --gray: #516254;
-    --sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-    --mono: 'IBM Plex Mono', monospace;
+    --color-abyss: #171717;
+    --color-surface: #1e1e1e;
+    --color-bright-gray: #eeeeee;
+    --color-medium-gray: #bcbcbc;
+    --color-graphite: #3f3f3f;
+    --color-amethyst: #7c3aed;
+    --color-amethyst-hover: #6d28d9;
+    --color-lavender: #a78bfa;
+    --color-tag-bg: rgba(138, 92, 245, 0.15);
+    --font-sans: 'ui-sans-serif, system-ui', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
   }
   body {
-    background: var(--bone);
-    color: var(--black);
-    font-family: var(--sans);
+    background: var(--color-abyss);
+    color: var(--color-bright-gray);
+    font-family: var(--font-sans);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -28,44 +33,47 @@
   }
   .box {
     max-width: 480px;
-    border: 1px solid rgba(18, 22, 19, 0.18);
+    border: 1px solid var(--color-graphite);
+    box-shadow: rgba(255, 255, 255, 0.05) 0px 0px 0px 1px inset;
     padding: 40px 32px;
-    background: rgba(200, 210, 200, 0.15);
-    border-radius: 6px;
+    background: var(--color-surface);
+    border-radius: 12px;
   }
   .tag {
-    font: 600 11px var(--mono);
-    color: var(--green);
-    background: var(--black);
-    padding: 3px 8px;
-    border-radius: 3px;
+    font: 600 11px var(--font-mono);
+    color: var(--color-lavender);
+    background: var(--color-tag-bg);
+    padding: 3px 10px;
+    border-radius: 9999px;
     display: inline-block;
     margin-bottom: 16px;
   }
   h1 {
-    font-size: 32px;
+    font-size: 28px;
+    font-weight: 600;
     margin: 0 0 12px;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
+    color: var(--color-bright-gray);
   }
   p {
     font-size: 14px;
-    color: var(--gray);
+    color: var(--color-medium-gray);
     margin-bottom: 24px;
     line-height: 1.5;
   }
   a {
     display: inline-block;
-    background: var(--black);
-    color: var(--bone);
+    background: var(--color-amethyst);
+    color: #ffffff;
     text-decoration: none;
-    font: 600 12px var(--sans);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 10px 20px;
-    border-radius: 4px;
-    transition: transform 0.2s ease;
+    font: 500 13px var(--font-sans);
+    padding: 12px 22px;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px -2px rgba(124, 58, 237, 0.4);
+    transition: background 0.2s ease, transform 0.2s ease;
   }
   a:hover {
+    background: var(--color-amethyst-hover);
     transform: translateY(-1px);
   }
 </style>
