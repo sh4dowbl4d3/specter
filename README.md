@@ -1,11 +1,5 @@
 # Specter — Browser-Native Cryptanalysis & Cyber Toolkit
 
-[![Build & Deploy](https://github.com/sh4dowbl4d3/specter/actions/workflows/deploy.yml/badge.svg)](https://github.com/sh4dowbl4d3/specter/actions/workflows/deploy.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Rust: 2021](https://img.shields.io/badge/Rust-2021_Edition-orange.svg)](https://www.rust-lang.org/)
-[![WebAssembly](https://img.shields.io/badge/Compute-WebAssembly-654FF0.svg)](https://webassembly.org/)
-[![Zero Telemetry](https://img.shields.io/badge/Privacy-Zero_Telemetry-2bee4b.svg)](#privacy--security-architecture)
-
 > **Specter** is a fast, offline-first, client-side cybersecurity toolkit built with **Rust + WebAssembly**. It provides cryptographic hash identification, multi-algorithm checksum generation, dictionary & bounded brute-force hash cracking, classical cipher codecs & statistical heuristic detection, and file forensics — running **100% inside your browser** with zero external network requests.
 
 ---
