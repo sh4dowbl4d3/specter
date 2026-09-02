@@ -515,6 +515,8 @@ main {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--color-muted-gray);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
 .hero h1 {

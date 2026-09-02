@@ -1,4 +1,18 @@
 (() => {
+  const updateClock = () => {
+    const el = document.getElementById('hero-clock') || document.querySelector('.hero-date');
+    if (!el) return;
+    const d = new Date();
+    let h = d.getHours();
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    el.textContent = `${String(h).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')} ${ap}`;
+  };
+  updateClock();
+  if (!window.__heroClockInterval) {
+    window.__heroClockInterval = setInterval(updateClock, 1000);
+  }
+
   const boot = () => {
     if (window.__specterMotionBooted || !window.gsap) return;
     window.__specterMotionBooted = true;
