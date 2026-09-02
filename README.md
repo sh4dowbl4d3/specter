@@ -4,14 +4,14 @@
 
 ---
 
-## ⚡ Live Workbench
+## Live Workbench
 
 Access the live desk deployed directly on GitHub Pages:
 🔗 **`https://sh4dowbl4d3.github.io/specter/`**
 
 ---
 
-## 🧭 Toolkit Instruments
+## Toolkit Instruments
 
 Specter is organized into four primary workbench desks:
 
@@ -42,7 +42,7 @@ Specter is organized into four primary workbench desks:
 
 ---
 
-## 🔒 Privacy & Security Architecture
+## Privacy & Security Architecture
 
 Specter follows a strict **zero-telemetry, zero-persistence** security model:
 
@@ -53,7 +53,7 @@ Specter follows a strict **zero-telemetry, zero-persistence** security model:
 
 ---
 
-## ⌨️ Global Keyboard Shortcuts
+## Global Keyboard Shortcuts
 
 | Shortcut | Action | Scope |
 |---|---|---|
@@ -67,7 +67,7 @@ Specter follows a strict **zero-telemetry, zero-persistence** security model:
 
 ---
 
-## 🏗️ Repository Architecture
+## Repository Architecture
 
 The workspace strictly decouples pure algorithmic logic from browser DOM interactions:
 
@@ -110,7 +110,7 @@ specter/
 
 ---
 
-## 🛠️ Development & Building
+## Development & Building
 
 ### Prerequisites
 
@@ -150,7 +150,7 @@ Distribution artifacts will be generated in `crates/wasm-frontend/dist/`.
 
 ---
 
-## 🧪 Quality Gates & Testing
+## Quality Gates & Testing
 
 Specter maintains strict testing and linting standards:
 
@@ -173,6 +173,6 @@ cargo doc --workspace --no-deps
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
